@@ -1,10 +1,10 @@
 "use client"
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useAppStore } from '@/lib/store'
-import { saveMealLog } from '@/lib/api'
+import { saveMealLog, updateMealLog } from '@/lib/api'
 import { format } from 'date-fns'
-import { MealItem } from '@/types/database.types'
+import { MealItem, MealLog } from '@/types/database.types'
 
 const SATISFACTION_OPTIONS = [
     { value: 5, label: '다 먹음', icon: 'sentiment_very_satisfied', color: 'bg-primary text-white shadow-primary/30' },
@@ -37,7 +37,8 @@ export function MealEditor() {
         logs, setLogs,
         currentNutrition, setCurrentNutrition,
         currentBaby,
-        setEditorOpen
+        setEditorOpen,
+        editingLog, setEditingLog
     } = useAppStore()
 
     const [items, setItems] = useState<MealItem[]>([createEmptyItem()])
@@ -46,6 +47,22 @@ export function MealEditor() {
     const [isSaving, setIsSaving] = useState(false)
     const [saveSuccess, setSaveSuccess] = useState(false)
     const [saveError, setSaveError] = useState<string | null>(null)
+
+    // Populate data if editing
+    useEffect(() => {
+        if (editingLog) {
+            setItems(editingLog.meal_items || [createEmptyItem()])
+            setIngredientInputs((editingLog.meal_items || [createEmptyItem()]).map(() => ''))
+            setNoteText(editingLog.note_text || '')
+            setCurrentNutrition(editingLog.nutrition)
+        } else {
+            // Reset to defaults if not editing
+            setItems([createEmptyItem()])
+            setIngredientInputs([''])
+            setNoteText('')
+            setCurrentNutrition({ carbs: 3, protein: 2, fat: 1, vitamins: 2 })
+        }
+    }, [editingLog, setCurrentNutrition])
 
     // -- Item helpers --
     const addItem = () => {
@@ -91,21 +108,34 @@ export function MealEditor() {
         setIsSaving(true)
         setSaveError(null)
         try {
-            const newLog = await saveMealLog({
-                user_id: user.id,
-                baby_id: currentBaby?.id || null,
-                date: format(selectedDate, 'yyyy-MM-dd'),
-                meal_type: selectedMealType,
-                meal_name: null,
-                meal_items: validItems,
-                nutrition: currentNutrition,
-                satisfaction: null,
-                note_text: noteText.trim() || null,
-                handwritten_image_url: null,
-            })
-            setLogs([newLog, ...logs])
+            if (editingLog) {
+                const updatedLog = await updateMealLog(editingLog.id, {
+                    meal_items: validItems,
+                    nutrition: currentNutrition,
+                    note_text: noteText.trim() || null,
+                })
+                setLogs(logs.map(l => l.id === updatedLog.id ? updatedLog : l))
+            } else {
+                const newLog = await saveMealLog({
+                    user_id: user.id,
+                    baby_id: currentBaby?.id || null,
+                    date: format(selectedDate, 'yyyy-MM-dd'),
+                    meal_type: selectedMealType,
+                    meal_name: null,
+                    meal_items: validItems,
+                    nutrition: currentNutrition,
+                    satisfaction: null,
+                    note_text: noteText.trim() || null,
+                    handwritten_image_url: null,
+                })
+                setLogs([newLog, ...logs])
+            }
             setSaveSuccess(true)
-            setTimeout(() => { setSaveSuccess(false); setEditorOpen(false) }, 800)
+            setTimeout(() => {
+                setSaveSuccess(false)
+                setEditingLog(null)
+                setEditorOpen(false)
+            }, 800)
         } catch (e: unknown) {
             setSaveError(e instanceof Error ? e.message : '저장에 실패했습니다.')
         } finally {
@@ -169,8 +199,8 @@ export function MealEditor() {
                                         key={opt.value}
                                         onClick={() => updateItem(idx, { satisfaction: opt.value })}
                                         className={`flex-1 flex flex-col items-center gap-1 p-2 rounded-xl transition-all text-xs font-bold ${item.satisfaction === opt.value
-                                                ? `${opt.color} shadow-lg`
-                                                : 'bg-white dark:bg-slate-700 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-600'
+                                            ? `${opt.color} shadow-lg`
+                                            : 'bg-white dark:bg-slate-700 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-600'
                                             }`}
                                     >
                                         <span className="material-symbols-outlined text-xl">{opt.icon}</span>
@@ -240,14 +270,14 @@ export function MealEditor() {
                 onClick={handleSave}
                 disabled={isSaving || saveSuccess}
                 className={`w-full py-4 rounded-2xl font-black text-base transition-all flex items-center justify-center gap-2 shadow-lg ${saveSuccess
-                        ? 'bg-green-500 text-white shadow-green-500/30'
-                        : 'bg-primary text-slate-900 shadow-primary/30 hover:brightness-105 disabled:opacity-60'
+                    ? 'bg-green-500 text-white shadow-green-500/30'
+                    : 'bg-primary text-slate-900 shadow-primary/30 hover:brightness-105 disabled:opacity-60'
                     }`}
             >
                 <span className="material-symbols-outlined text-xl">
                     {saveSuccess ? 'check_circle' : isSaving ? 'hourglass_empty' : 'save'}
                 </span>
-                {saveSuccess ? '저장 완료!' : isSaving ? '저장 중...' : '식단 기록 저장'}
+                {saveSuccess ? (editingLog ? '수정 완료!' : '저장 완료!') : isSaving ? (editingLog ? '수정 중...' : '저장 중...') : (editingLog ? '식단 기록 수정' : '식단 기록 저장')}
             </button>
         </div>
     )

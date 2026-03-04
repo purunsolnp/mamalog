@@ -142,10 +142,13 @@ export function CalendarDashboard() {
                                     if (log.satisfaction === 2) chipBg = "bg-amber-400/15"
                                     if (log.satisfaction === 1) chipBg = "bg-red-400/15"
                                     const emoji = MEAL_EMOJI[log.meal_type] ?? '🍽️'
+                                    const menuText = log.meal_items && log.meal_items.length > 0
+                                        ? log.meal_items.map(i => i.name).filter(Boolean).join(' · ')
+                                        : log.meal_name || log.meal_type
 
                                     return (
                                         <div key={idx} className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-md truncate leading-tight text-slate-900 dark:text-slate-100 ${chipBg}`}>
-                                            {emoji} {log.meal_name || log.meal_type}
+                                            {emoji} {menuText}
                                         </div>
                                     )
                                 })}

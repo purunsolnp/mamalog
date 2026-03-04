@@ -21,7 +21,7 @@ const MEAL_TYPE_ICON: Record<string, string> = {
 }
 
 export function MealLogCard({ log }: { log: MealLog }) {
-    const { logs, setLogs } = useAppStore()
+    const { logs, setLogs, setEditingLog, setEditorOpen, setDate, setMealType } = useAppStore()
     const [isExpanded, setIsExpanded] = useState(false)
     const [isDeleting, setIsDeleting] = useState(false)
 
@@ -51,6 +51,13 @@ export function MealLogCard({ log }: { log: MealLog }) {
         } finally {
             setIsDeleting(false)
         }
+    }
+
+    const handleEdit = () => {
+        setEditingLog(log)
+        setDate(new Date(log.date))
+        setMealType(log.meal_type)
+        setEditorOpen(true)
     }
 
     return (
@@ -89,6 +96,13 @@ export function MealLogCard({ log }: { log: MealLog }) {
 
                 {/* Actions */}
                 <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1" onClick={e => e.stopPropagation()}>
+                    <button
+                        onClick={handleEdit}
+                        className="p-1.5 text-slate-400 hover:text-primary hover:bg-primary/5 dark:hover:bg-primary/10 rounded-xl transition-colors"
+                        title="수정"
+                    >
+                        <span className="material-symbols-outlined text-lg">edit</span>
+                    </button>
                     <button
                         onClick={handleDelete}
                         disabled={isDeleting}

@@ -32,7 +32,9 @@ type AppState = {
 
     // Data State
     logs: MealLog[]
+    editingLog: MealLog | null
     setLogs: (logs: MealLog[]) => void
+    setEditingLog: (log: MealLog | null) => void
     inventories: Inventory[]
     setInventories: (inventories: Inventory[]) => void
     dailySummaries: DailySummary[]
@@ -67,7 +69,9 @@ export const useAppStore = create<AppState>((set) => ({
     setEditorOpen: (isOpen) => set({ isEditorOpen: isOpen }),
 
     logs: [],
+    editingLog: null,
     setLogs: (logs) => set({ logs }),
+    setEditingLog: (editingLog) => set({ editingLog }),
     inventories: [],
     setInventories: (inventories) => set({ inventories }),
     dailySummaries: [],
