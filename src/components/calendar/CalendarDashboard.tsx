@@ -147,7 +147,12 @@ export function CalendarDashboard() {
                                         : log.meal_name || log.meal_type
 
                                     return (
-                                        <div key={idx} className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-md truncate leading-tight text-slate-900 dark:text-slate-100 ${chipBg}`}>
+                                        <div
+                                            key={idx}
+                                            title={menuText}
+                                            className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-md leading-tight text-slate-900 dark:text-slate-100 overflow-hidden ${chipBg}`}
+                                            style={{ display: '-webkit-box', WebkitBoxOrient: 'vertical', WebkitLineClamp: 2, overflow: 'hidden' }}
+                                        >
                                             {emoji} {menuText}
                                         </div>
                                     )

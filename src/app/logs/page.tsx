@@ -228,7 +228,29 @@ export default function LogsPage() {
                                 { label: '총 기록 수', value: `${stats.total}회`, icon: 'receipt_long', color: 'bg-primary/10 text-primary' },
                                 { label: '평균 섭취량', value: (() => { const sats = logs.flatMap(l => l.meal_items?.length ? l.meal_items.map(i => i.satisfaction) : [l.satisfaction ?? 3]); return (sats.reduce((a, b) => a + b, 0) / sats.length).toFixed(1) + ' / 5' })(), icon: 'sentiment_satisfied', color: 'bg-green-100 text-green-500' },
                                 { label: '기록한 날', value: `${new Set(logs.map(l => l.date)).size}일`, icon: 'calendar_month', color: 'bg-blue-100 text-blue-500' },
-                                { label: '분석 식재료', value: `${Object.keys(logs.flatMap(l => l.note_text?.split(',') ?? []).reduce((a: Record<string, boolean>, v) => { if (v.trim()) a[v.trim()] = true; return a }, {})).length}종`, icon: 'grocery', color: 'bg-purple-100 text-purple-500' },
+                                {
+                                    label: '분석 식재료', icon: 'grocery', color: 'bg-purple-100 text-purple-500',
+                                    value: (() => {
+                                        const ingSet = new Set<string>()
+                                        for (const l of logs) {
+                                            // meal_items 재료 우선
+                                            if (l.meal_items && l.meal_items.length > 0) {
+                                                for (const item of l.meal_items) {
+                                                    for (const ing of item.ingredients) {
+                                                        if (ing.trim()) ingSet.add(ing.trim())
+                                                    }
+                                                }
+                                            }
+                                            // note_text 보조 파싱
+                                            if (l.note_text) {
+                                                for (const p of l.note_text.split(',')) {
+                                                    if (p.trim()) ingSet.add(p.trim())
+                                                }
+                                            }
+                                        }
+                                        return `${ingSet.size}종`
+                                    })()
+                                },
                             ].map(s => (
                                 <div key={s.label} className="bg-white dark:bg-slate-900 rounded-2xl p-5 border border-slate-100 dark:border-slate-800 shadow-sm flex items-center gap-3">
                                     <div className={`size-10 rounded-xl ${s.color} flex items-center justify-center shrink-0`}>

@@ -120,7 +120,14 @@ export function ProfileEditor({ isOpen, onClose }: { isOpen: boolean, onClose: (
 
                 {!isFormOpen ? (
                     <div className="flex flex-col gap-4">
-                        {/* Baby List */}
+                        {/* 아기 없을 때 안내 배너 */}
+                        {babies.length === 0 && (
+                            <div className="flex items-center gap-3 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-2xl text-sm text-amber-700 dark:text-amber-300">
+                                <span className="material-symbols-outlined text-lg shrink-0">info</span>
+                                <p>식단 기록을 시작하려면 먼저 아이 프로필을 등록해 주세요.</p>
+                            </div>
+                        )}
+
                         <div className="flex flex-col gap-2 max-h-[40vh] overflow-y-auto pr-1">
                             {babies.length > 0 ? babies.map((baby) => (
                                 <div

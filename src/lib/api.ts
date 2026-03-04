@@ -104,13 +104,18 @@ export const updateMealLog = async (
         .update(fields)
         .eq('id', id)
         .select()
-        .single()
 
     if (error) {
-        console.error("Error updating meal log:", error)
-        throw error
+        const msg = error.message || error.details || JSON.stringify(error) || '알 수 없는 오류'
+        console.error("Error updating meal log:", msg, error)
+        throw new Error(msg)
     }
-    return data as MealLog
+
+    if (!data || data.length === 0) {
+        throw new Error('수정할 기록을 찾을 수 없습니다. 삭제됐거나 권한이 없을 수 있어요.')
+    }
+
+    return data[0] as MealLog
 }
 
 // Database Helper: Get Profile

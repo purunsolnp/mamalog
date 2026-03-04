@@ -24,6 +24,7 @@ export function MealLogCard({ log }: { log: MealLog }) {
     const { logs, setLogs, setEditingLog, setEditorOpen, setDate, setMealType } = useAppStore()
     const [isExpanded, setIsExpanded] = useState(false)
     const [isDeleting, setIsDeleting] = useState(false)
+    const [isWrapping, setIsWrapping] = useState(false)
 
     const hasItems = log.meal_items && log.meal_items.length > 0
     const mealIcon = MEAL_TYPE_ICON[log.meal_type] ?? 'restaurant'
@@ -78,7 +79,15 @@ export function MealLogCard({ log }: { log: MealLog }) {
                 <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                         <span className="text-xs font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-md">{log.meal_type}</span>
-                        <h4 className="font-bold text-slate-900 dark:text-slate-100 truncate">{titleText}</h4>
+                        <h4 className={`font-bold text-slate-900 dark:text-slate-100 ${isWrapping ? 'whitespace-normal break-words' : 'truncate'}`}>{titleText}</h4>
+                        {/* Wrap toggle */}
+                        <button
+                            onClick={(e) => { e.stopPropagation(); setIsWrapping(v => !v) }}
+                            className="shrink-0 text-slate-300 hover:text-primary transition-colors"
+                            title={isWrapping ? '한 줄로 보기' : '전체 내용 보기'}
+                        >
+                            <span className="material-symbols-outlined text-sm">{isWrapping ? 'wrap_text' : 'text_fields'}</span>
+                        </button>
                     </div>
                     {/* Item count or note */}
                     <p className="text-xs text-slate-400 mt-0.5">

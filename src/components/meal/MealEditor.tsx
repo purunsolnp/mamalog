@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useAppStore } from '@/lib/store'
 import { saveMealLog, updateMealLog } from '@/lib/api'
 import { format } from 'date-fns'
@@ -42,7 +42,8 @@ export function MealEditor() {
     } = useAppStore()
 
     const [items, setItems] = useState<MealItem[]>([createEmptyItem()])
-    const [ingredientInputs, setIngredientInputs] = useState<string[]>([''])
+    // ref 방식으로 재료 입력 관리 (상태 동기화 타이밍 문제 제거)
+    const ingredientRefs = useRef<(HTMLInputElement | null)[]>([])
     const [noteText, setNoteText] = useState('')
     const [isSaving, setIsSaving] = useState(false)
     const [saveSuccess, setSaveSuccess] = useState(false)
@@ -52,39 +53,44 @@ export function MealEditor() {
     useEffect(() => {
         if (editingLog) {
             setItems(editingLog.meal_items || [createEmptyItem()])
-            setIngredientInputs((editingLog.meal_items || [createEmptyItem()]).map(() => ''))
             setNoteText(editingLog.note_text || '')
             setCurrentNutrition(editingLog.nutrition)
         } else {
             // Reset to defaults if not editing
             setItems([createEmptyItem()])
-            setIngredientInputs([''])
             setNoteText('')
             setCurrentNutrition({ carbs: 3, protein: 2, fat: 1, vitamins: 2 })
         }
+        // ref 입력값 전체 초기화
+        ingredientRefs.current.forEach(r => { if (r) r.value = '' })
     }, [editingLog, setCurrentNutrition])
 
     // -- Item helpers --
     const addItem = () => {
         setItems(prev => [...prev, createEmptyItem()])
-        setIngredientInputs(prev => [...prev, ''])
     }
 
     const removeItem = (idx: number) => {
         setItems(prev => prev.filter((_, i) => i !== idx))
-        setIngredientInputs(prev => prev.filter((_, i) => i !== idx))
+        // 해당 ref 제거
+        ingredientRefs.current.splice(idx, 1)
     }
 
     const updateItem = (idx: number, patch: Partial<MealItem>) => {
         setItems(prev => prev.map((item, i) => i === idx ? { ...item, ...patch } : item))
     }
 
-    const handleIngredientKey = (idx: number, e: React.KeyboardEvent<HTMLInputElement>) => {
-        if (e.key === 'Enter' && ingredientInputs[idx].trim()) {
-            const val = ingredientInputs[idx].trim()
-            updateItem(idx, { ingredients: [...items[idx].ingredients, val] })
-            setIngredientInputs(prev => prev.map((v, i) => i === idx ? '' : v))
-        }
+    // ref에서 직접 값을 읽어 재료 추가 (고리안/한국어 IME, 영어 모두 안정적)
+    const addIngredientByRef = (idx: number) => {
+        const input = ingredientRefs.current[idx]
+        if (!input) return
+        const val = input.value.trim()
+        if (!val) return
+        setItems(prev => prev.map((item, i) =>
+            i === idx ? { ...item, ingredients: [...item.ingredients, val] } : item
+        ))
+        input.value = ''
+        input.focus()
     }
 
     const removeIngredient = (itemIdx: number, ingIdx: number) => {
@@ -105,11 +111,15 @@ export function MealEditor() {
         const validItems = items.filter(i => i.name.trim())
         if (validItems.length === 0) { setSaveError('반찬 이름을 최소 1개 입력해 주세요.'); return }
 
+        // 저장 시작 시점에 편집 여부 스냅샷 (비동기 중 상태 변경에 영향 없도록)
+        const isEditing = !!editingLog
+        const editingLogId = editingLog?.id
+
         setIsSaving(true)
         setSaveError(null)
         try {
-            if (editingLog) {
-                const updatedLog = await updateMealLog(editingLog.id, {
+            if (isEditing && editingLogId) {
+                const updatedLog = await updateMealLog(editingLogId, {
                     meal_items: validItems,
                     nutrition: currentNutrition,
                     note_text: noteText.trim() || null,
@@ -130,10 +140,11 @@ export function MealEditor() {
                 })
                 setLogs([newLog, ...logs])
             }
+            // editingLog를 즉시 초기화해서 다음 저장이 update로 잘못 분기되는 버그 방지
+            setEditingLog(null)
             setSaveSuccess(true)
             setTimeout(() => {
                 setSaveSuccess(false)
-                setEditingLog(null)
                 setEditorOpen(false)
             }, 800)
         } catch (e: unknown) {
@@ -169,28 +180,73 @@ export function MealEditor() {
                                 type="text"
                                 value={item.name}
                                 onChange={(e) => updateItem(idx, { name: e.target.value })}
+                                onKeyUp={(e) => {
+                                    if (e.key === 'Enter') {
+                                        const name = (e.target as HTMLInputElement).value.trim()
+                                        if (name) {
+                                            // 이름의 각 단어 중 아직 재료에 없는 것만 추가
+                                            const existing = items[idx].ingredients
+                                            const newWords = name.split(/\s+/).filter(
+                                                w => w && !existing.includes(w)
+                                            )
+                                            if (newWords.length > 0) {
+                                                updateItem(idx, { ingredients: [...existing, ...newWords] })
+                                            }
+                                        }
+                                        // 재료 입력칸으로 포커스 이동
+                                        ingredientRefs.current[idx]?.focus()
+                                    }
+                                }}
+                                onBlur={(e) => {
+                                    const name = e.target.value.trim()
+                                    if (name) {
+                                        const existing = items[idx].ingredients
+                                        const newWords = name.split(/\s+/).filter(
+                                            w => w && !existing.includes(w)
+                                        )
+                                        if (newWords.length > 0) {
+                                            updateItem(idx, { ingredients: [...existing, ...newWords] })
+                                        }
+                                    }
+                                }}
                                 placeholder={`반찬 이름 (예: 소고기 미음)`}
                                 className="w-full bg-transparent border-none p-0 font-bold text-lg text-slate-900 dark:text-white outline-none placeholder:text-slate-300 mb-3"
                             />
 
                             {/* Ingredients */}
-                            <div className="flex flex-wrap gap-1.5 mb-3">
-                                {item.ingredients.map((ing, ingIdx) => (
-                                    <span key={ingIdx} className="flex items-center gap-1 bg-white dark:bg-slate-700 px-2.5 py-1 rounded-lg text-xs font-medium border border-slate-200 dark:border-slate-600">
-                                        {ing}
-                                        <button onClick={() => removeIngredient(idx, ingIdx)} className="text-slate-300 hover:text-red-400">
-                                            <span className="material-symbols-outlined text-[10px]">close</span>
-                                        </button>
-                                    </span>
-                                ))}
-                                <input
-                                    value={ingredientInputs[idx] || ''}
-                                    onChange={(e) => setIngredientInputs(prev => prev.map((v, i) => i === idx ? e.target.value : v))}
-                                    onKeyDown={(e) => handleIngredientKey(idx, e)}
-                                    placeholder="재료 입력 후 엔터"
-                                    className="bg-transparent border-none text-xs outline-none text-slate-500 placeholder:text-slate-300 min-w-[120px]"
-                                />
+                            <div className="mb-3">
+                                <div className="flex flex-wrap gap-1.5 mb-1.5">
+                                    {item.ingredients.map((ing, ingIdx) => (
+                                        <span key={ingIdx} className="flex items-center gap-1 bg-white dark:bg-slate-700 px-2.5 py-1 rounded-lg text-xs font-medium border border-slate-200 dark:border-slate-600">
+                                            {ing}
+                                            <button onClick={() => removeIngredient(idx, ingIdx)} className="text-slate-300 hover:text-red-400">
+                                                <span className="material-symbols-outlined text-[10px]">close</span>
+                                            </button>
+                                        </span>
+                                    ))}
+                                </div>
+                                <div className="flex items-center gap-1 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl px-2 py-1">
+                                    <input
+                                        ref={(el) => { ingredientRefs.current[idx] = el }}
+                                        type="text"
+                                        defaultValue=""
+                                        onKeyUp={(e) => {
+                                            if (e.key === 'Enter') addIngredientByRef(idx)
+                                        }}
+                                        placeholder="재료 입력 후 엔터 또는 +"
+                                        className="flex-1 bg-transparent border-none text-xs outline-none text-slate-600 dark:text-slate-300 placeholder:text-slate-300 min-w-[0]"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => addIngredientByRef(idx)}
+                                        className="shrink-0 text-primary hover:bg-primary/10 rounded-lg p-0.5 transition-colors"
+                                        title="재료 추가"
+                                    >
+                                        <span className="material-symbols-outlined text-base">add</span>
+                                    </button>
+                                </div>
                             </div>
+
 
                             {/* Satisfaction per dish */}
                             <div className="flex gap-2 mt-1">
@@ -277,7 +333,7 @@ export function MealEditor() {
                 <span className="material-symbols-outlined text-xl">
                     {saveSuccess ? 'check_circle' : isSaving ? 'hourglass_empty' : 'save'}
                 </span>
-                {saveSuccess ? (editingLog ? '수정 완료!' : '저장 완료!') : isSaving ? (editingLog ? '수정 중...' : '저장 중...') : (editingLog ? '식단 기록 수정' : '식단 기록 저장')}
+                {saveSuccess ? '완료!' : isSaving ? '처리 중...' : (editingLog ? '식단 기록 수정' : '식단 기록 저장')}
             </button>
         </div>
     )

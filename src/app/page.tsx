@@ -76,6 +76,7 @@ export default function Home() {
     selectedDate, isEditorOpen, setEditorOpen,
     logs, setLogs, dailySummaries, setDailySummaries,
     growthCharts, setGrowthCharts,
+    editingLog, setEditingLog,
     setAuthModalOpen
   } = useAppStore()
   const [isAddingNew, setIsAddingNew] = useState(false)
@@ -136,6 +137,7 @@ export default function Home() {
   const handleCloseModal = () => {
     setEditorOpen(false)
     setIsAddingNew(false)
+    setEditingLog(null)
   }
 
   return (
@@ -193,7 +195,15 @@ export default function Home() {
                   <span className="material-symbols-outlined">child_care</span>
                 </button>
                 <button
-                  onClick={() => { setIsAddingNew(false); setEditorOpen(true) }}
+                  onClick={() => {
+                    if (!currentBaby) {
+                      // 아기 프로필 없으면 먼저 프로필 설정 유도
+                      setProfileModalOpen(true)
+                    } else {
+                      setIsAddingNew(false)
+                      setEditorOpen(true)
+                    }
+                  }}
                   className="flex items-center gap-2 px-6 py-3 bg-primary text-slate-900 rounded-2xl font-black text-sm shadow-lg shadow-primary/20 hover:brightness-105 active:scale-95 transition-all"
                 >
                   <span className="material-symbols-outlined text-lg">add</span>
@@ -321,8 +331,8 @@ export default function Home() {
                   <DailySummaryEditor />
                 </div>
 
-                {/* Add New Toggle */}
-                {!isAddingNew ? (
+                {/* Add New / Edit Toggle */}
+                {!isAddingNew && !editingLog ? (
                   <button
                     onClick={() => setIsAddingNew(true)}
                     className="w-full py-4 border-2 border-dashed border-primary/30 hover:border-primary/60 text-primary font-bold rounded-2xl flex items-center justify-center gap-2 transition-all hover:bg-primary/5"
@@ -333,8 +343,13 @@ export default function Home() {
                 ) : (
                   <div>
                     <div className="flex items-center justify-between mb-4">
-                      <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider">새 식단 추가</h3>
-                      <button onClick={() => setIsAddingNew(false)} className="text-xs text-slate-400 hover:text-slate-600 flex items-center gap-1">
+                      <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider">
+                        {editingLog ? '식단 수정' : '새 식단 추가'}
+                      </h3>
+                      <button
+                        onClick={() => { setIsAddingNew(false); setEditingLog(null) }}
+                        className="text-xs text-slate-400 hover:text-slate-600 flex items-center gap-1"
+                      >
                         <span className="material-symbols-outlined text-sm">expand_less</span>
                         접기
                       </button>
