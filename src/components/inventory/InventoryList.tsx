@@ -261,26 +261,27 @@ export function InventoryList() {
                                 {!item.ingredient_name.includes('(') && <p className="text-sm text-slate-500 dark:text-slate-400 h-5"></p>}
 
                                 <div className="mt-4 pt-4 border-t border-slate-50 dark:border-slate-800 flex items-center justify-between">
-                                    <div className="flex items-center gap-2">
-                                        {item.stock_status === 'low' ? (
-                                            <span className="flex items-center gap-1 px-2.5 py-1 bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 text-xs font-bold rounded-lg">
-                                                <span className="material-symbols-outlined text-sm">shopping_cart</span>
-                                                모자람
-                                            </span>
-                                        ) : (
-                                            <span className="flex items-center gap-1 px-2.5 py-1 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 text-xs font-bold rounded-lg">
-                                                <span className="material-symbols-outlined text-sm">check_circle</span>
-                                                충분함
-                                            </span>
-                                        )}
-                                    </div>
                                     <button
                                         onClick={() => toggleStockStatus(item)}
-                                        className="text-xs font-bold text-primary hover:bg-primary/10 px-2 py-1 rounded-lg transition-colors flex items-center gap-1"
+                                        className="group/btn transition-transform active:scale-95"
+                                        title="상태 변경"
                                     >
-                                        <span className="material-symbols-outlined text-sm">sync</span>
-                                        상태 변경
+                                        {item.stock_status === 'low' ? (
+                                            <span className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 text-xs font-bold rounded-xl whitespace-nowrap border border-amber-200 dark:border-amber-800 group-hover/btn:border-amber-400 transition-colors">
+                                                <span className="material-symbols-outlined text-sm sm:text-base">shopping_cart</span>
+                                                모자람
+                                                <span className="material-symbols-outlined text-[10px] opacity-40 group-hover/btn:opacity-100 transition-opacity ml-0.5">sync</span>
+                                            </span>
+                                        ) : (
+                                            <span className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 text-xs font-bold rounded-xl whitespace-nowrap border border-emerald-200 dark:border-emerald-800 group-hover/btn:border-emerald-400 transition-colors">
+                                                <span className="material-symbols-outlined text-sm sm:text-base">check_circle</span>
+                                                충분함
+                                                <span className="material-symbols-outlined text-[10px] opacity-40 group-hover/btn:opacity-100 transition-opacity ml-0.5">sync</span>
+                                            </span>
+                                        )}
                                     </button>
+
+                                    <p className="text-[10px] text-slate-300 dark:text-slate-600 font-medium hidden xs:block">클릭하여 상태 변경</p>
                                 </div>
                             </>
                         )}

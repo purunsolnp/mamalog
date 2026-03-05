@@ -96,3 +96,10 @@ export type MealPlan = {
     dish_name: string
     ingredients: string[]
 }
+
+// 한 끼니에 여러 음식을 담을 수 있는 셀 타입
+export type PlanCell = {
+    id?: string
+    dishes: string[]      // 음식 목록 (여러 개)
+    ingredients: string   // 재료 (공통)
+}

@@ -7,19 +7,15 @@ import { Header } from '@/components/layout/Header'
 import { AuthModal } from '@/components/auth/AuthModal'
 import { format, addDays, startOfWeek } from 'date-fns'
 import { ko } from 'date-fns/locale'
+import { smartExtractIngredients } from '@/lib/utils'
+import { PlanCell } from '@/types/database.types'
+import { ShoppingWidget } from '@/components/shopping/ShoppingWidget'
 import { supabase } from '@/lib/supabase'
-import { normalizeIngredient, extractIngredients, smartExtractIngredients } from '@/lib/ingredients'
+import { normalizeIngredient, extractIngredients } from '@/lib/ingredients'
 
 const MEAL_TYPES = ['아침', '간식1', '점심', '간식2', '저녁']
 const MEAL_EMOJI: Record<string, string> = {
     '아침': '🌅', '간식1': '🍪', '점심': '🍱', '간식2': '🧃', '저녁': '🌙'
-}
-
-// 한 끼니에 여러 음식을 담을 수 있는 셀 타입
-type PlanCell = {
-    id?: string
-    dishes: string[]      // 음식 목록 (여러 개)
-    ingredients: string   // 재료 (공통)
 }
 
 function buildWeekDates(anchor: Date): string[] {
@@ -60,7 +56,14 @@ export default function PlannerPage() {
         if (!user || !currentBaby) return
         isDbLoading.current = true
         try {
-            const logs = await getMealLogs(user.id, weekStart, weekEnd, currentBaby.id)
+            const todayStr = format(new Date(), 'yyyy-MM-dd')
+            const nextWeekStr = format(addDays(new Date(), 7), 'yyyy-MM-dd')
+
+            // 현재 화면에 표시되는 주간(weekStart ~ weekEnd)과 장보기 목록에 필요한 7일(today ~ today+7)을 모두 포함하도록 범위 설정
+            const minStart = weekStart < todayStr ? weekStart : todayStr
+            const maxEnd = weekEnd > nextWeekStr ? weekEnd : nextWeekStr
+
+            const logs = await getMealLogs(user.id, minStart, maxEnd, currentBaby.id)
             setGrid(prev => {
                 const next = { ...prev }
                 for (const log of logs) {
@@ -81,7 +84,7 @@ export default function PlannerPage() {
             // React state update가 처리된 후 플래그 해제
             setTimeout(() => { isDbLoading.current = false }, 100)
         }
-    }, [user, weekStart, weekEnd])
+    }, [user, weekStart, weekEnd, currentBaby])
 
     useEffect(() => {
         setGrid({}) // 주간 변경 시 기존 그리드 초기화
@@ -105,25 +108,7 @@ export default function PlannerPage() {
             }
             setPastMenus([...names])
         }).catch(() => { })
-    }, [user])
-
-    const lowStockSet = useMemo(
-        () => new Set(
-            inventories
-                .filter(i => i.stock_status === 'low')
-                .map(i => normalizeIngredient(i.ingredient_name.split(' (')[0].trim()))
-        ),
-        [inventories]
-    )
-
-    const fridgeSet = useMemo(
-        () => new Set(
-            inventories
-                .filter(i => i.stock_status !== 'low')
-                .map(i => normalizeIngredient(i.ingredient_name.split(' (')[0].trim()))
-        ),
-        [inventories]
-    )
+    }, [user, currentBaby])
 
     // 셀 업데이트 함수
     const updateCell = useCallback((date: string, mealType: string, patch: Partial<PlanCell>) => {
@@ -183,7 +168,9 @@ export default function PlannerPage() {
                 const date = key.slice(0, underscoreIdx)
                 const mealType = key.slice(underscoreIdx + 1)
 
-                const knownIngNames = inventories.map(i => i.ingredient_name)
+                // Get latest inventories from the store without adding to dependency array
+                const latestInventories = useAppStore.getState().inventories
+                const knownIngNames = latestInventories.map(i => i.ingredient_name)
                 const ingredientsArray = smartExtractIngredients(cell.ingredients, knownIngNames)
                 const items = validDishes.map(name => ({
                     name: name.trim(),
@@ -289,7 +276,7 @@ export default function PlannerPage() {
             if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current)
         }
 
-    }, [grid]) // grid 변경 시에만 트리거, 나머지 deps는 stable refs
+    }, [grid, user, currentBaby]) // grid 변경 시에만 트리거, 나머지 deps는 stable refs
 
     // 수동 저장 (기존 저장 버튼)
     const savePlan = async () => {
@@ -299,41 +286,6 @@ export default function PlannerPage() {
             return
         }
         await saveGridToDb(grid)
-    }
-
-    // 장보기 목록 계산
-    const shoppingList = useMemo(() => {
-        const needed = new Map<string, number>()
-        const today = format(new Date(), 'yyyy-MM-dd')
-
-        Object.entries(grid).forEach(([key, cell]) => {
-            const underscoreIdx = key.indexOf('_')
-            const dateStr = key.slice(0, underscoreIdx)
-            // 오늘 날짜 이전은 장보기 목록에서 제외
-            if (dateStr < today) return
-
-            const validDishes = cell.dishes.filter(d => d.trim())
-            if (!validDishes.length) return
-            const knownIngNames = inventories.map(i => i.ingredient_name)
-            const ings = cell.ingredients
-                ? smartExtractIngredients(cell.ingredients, knownIngNames)
-                : validDishes.flatMap(d => smartExtractIngredients(d.trim(), knownIngNames))
-            ings.forEach(ing => needed.set(ing, (needed.get(ing) ?? 0) + 1))
-        })
-        const result: { name: string; count: number; inFridge: boolean; isOwnedButLow: boolean }[] = []
-        needed.forEach((count, name) => {
-            const inFridge = fridgeSet.has(name)
-            const isOwnedButLow = lowStockSet.has(name)
-            result.push({ name, count, inFridge, isOwnedButLow })
-        })
-        return result.sort((a, b) => Number(a.inFridge) - Number(b.inFridge))
-    }, [grid, fridgeSet, lowStockSet])
-
-    const missingItems = shoppingList.filter(i => !i.inFridge)
-
-    const copyToClipboard = () => {
-        const text = missingItems.map(i => `• ${i.name} (${i.count}회)`).join('\n')
-        navigator.clipboard.writeText(`📋 장보기 목록\n${text}`)
     }
 
     return (
@@ -542,110 +494,7 @@ export default function PlannerPage() {
 
                     {/* ── 장보기 목록 사이드바 (데스크탑전용) ── */}
                     <div className="hidden lg:flex flex-col gap-4">
-                        <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm p-6">
-                            <div className="flex items-center justify-between mb-5">
-                                <h2 className="font-bold text-lg flex items-center gap-2">
-                                    <span className="material-symbols-outlined text-primary">shopping_cart</span>
-                                    장보기 목록
-                                </h2>
-                                {missingItems.length > 0 && (
-                                    <button
-                                        onClick={copyToClipboard}
-                                        className="text-xs text-primary font-bold flex items-center gap-1 hover:underline"
-                                    >
-                                        <span className="material-symbols-outlined text-sm">content_copy</span>
-                                        복사
-                                    </button>
-                                )}
-                            </div>
-
-                            {shoppingList.length === 0 ? (
-                                <div className="py-8 text-center text-slate-400">
-                                    <span className="material-symbols-outlined text-4xl mb-2 block">edit_calendar</span>
-                                    <p className="text-sm">식단을 입력하면<br />장보기 목록이 생성됩니다</p>
-                                </div>
-                            ) : (
-                                <>
-                                    {missingItems.length > 0 && (
-                                        <div className="mb-4">
-                                            <p className="text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">구매 필요 ({missingItems.length})</p>
-                                            <div className="flex flex-col gap-1.5">
-                                                {missingItems.map(item => (
-                                                    <div
-                                                        key={item.name}
-                                                        className={`flex items-center gap-2 p-2.5 border rounded-xl transition-all ${item.isOwnedButLow
-                                                            ? 'bg-rose-50 dark:bg-rose-900/20 border-rose-100 dark:border-rose-800/30'
-                                                            : 'bg-amber-50 dark:bg-amber-900/20 border-amber-100 dark:border-amber-800/30'
-                                                            }`}
-                                                    >
-                                                        <span className={`material-symbols-outlined text-sm ${item.isOwnedButLow ? 'text-rose-500' : 'text-amber-500'}`}>
-                                                            {item.isOwnedButLow ? 'info' : 'shopping_bag'}
-                                                        </span>
-                                                        <div className="flex-1 min-w-0">
-                                                            <div className="flex items-center gap-1.5">
-                                                                <span className="text-sm font-semibold text-slate-800 dark:text-slate-200 truncate">{item.name}</span>
-                                                                {item.isOwnedButLow && (
-                                                                    <span className="shrink-0 text-[10px] px-1.5 py-0.5 bg-rose-100 dark:bg-rose-500/30 text-rose-600 dark:text-rose-400 font-bold rounded-md">재고 부족</span>
-                                                                )}
-                                                            </div>
-                                                            {item.isOwnedButLow && (
-                                                                <p className="text-[10px] text-rose-500/80 font-medium">보유 중이나 모자람</p>
-                                                            )}
-                                                        </div>
-                                                        <span className="text-xs text-slate-400 mr-1">{item.count}회</span>
-                                                        <button
-                                                            onClick={async () => {
-                                                                if (!user) return
-                                                                const existing = inventories.find(i =>
-                                                                    i.ingredient_name.split(' (')[0].trim() === item.name
-                                                                )
-                                                                if (existing) return
-                                                                const { data, error } = await supabase.from('inventory').insert({
-                                                                    user_id: user.id,
-                                                                    ingredient_name: item.name,
-                                                                    expiry_date: null,
-                                                                }).select().single()
-                                                                if (!error && data) setInventories([data, ...inventories])
-                                                            }}
-                                                            className="flex items-center gap-1 text-xs bg-primary/10 hover:bg-primary/20 text-primary font-bold px-2.5 py-1.5 rounded-lg transition-colors shrink-0"
-                                                        >
-                                                            <span className="material-symbols-outlined text-sm">check</span>
-                                                            이미 보유
-                                                        </button>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    )}
-                                    {shoppingList.filter(i => i.inFridge).length > 0 && (
-                                        <div>
-                                            <p className="text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">냉장고 보유 ✅</p>
-                                            <div className="flex flex-wrap gap-1.5">
-                                                {shoppingList.filter(i => i.inFridge).map(item => (
-                                                    <span key={item.name} className="text-xs px-2 py-1 bg-primary/10 text-primary rounded-lg font-medium">
-                                                        {item.name}
-                                                    </span>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    )}
-                                </>
-                            )}
-                        </div>
-
-                        {/* 요약 통계 */}
-                        {shoppingList.length > 0 && (
-                            <div className="grid grid-cols-2 gap-3">
-                                <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-4 text-center shadow-sm">
-                                    <p className="text-2xl font-black text-amber-500">{missingItems.length}</p>
-                                    <p className="text-xs text-slate-400 font-bold mt-0.5">구매 필요</p>
-                                </div>
-                                <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-4 text-center shadow-sm">
-                                    <p className="text-2xl font-black text-primary">{shoppingList.filter(i => i.inFridge).length}</p>
-                                    <p className="text-xs text-slate-400 font-bold mt-0.5">이미 보유</p>
-                                </div>
-                            </div>
-                        )}
+                        <ShoppingWidget inventories={inventories} localGrid={grid} layout="inline" />
                     </div>
                 </div>
 
@@ -760,11 +609,12 @@ export default function PlannerPage() {
             >
                 <span className="material-symbols-outlined text-xl">shopping_cart</span>
                 장보기 목록
-                {missingItems.length > 0 && (
+                {/* The count for missing items will be handled by ShoppingWidget internally */}
+                {/* {missingItems.length > 0 && (
                     <span className="bg-red-500 text-white text-xs font-black rounded-full px-2 py-0.5 min-w-[20px] text-center leading-tight">
                         {missingItems.length}
                     </span>
-                )}
+                )} */}
             </button>
 
             {/* 모바일 장보기 목록 서랍 (Drawer) */}
@@ -774,109 +624,18 @@ export default function PlannerPage() {
                         className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40 lg:hidden"
                         onClick={() => setIsShoppingOpen(false)}
                     />
-                    <div className="fixed inset-y-0 right-0 w-full max-w-sm bg-white dark:bg-slate-900 shadow-2xl z-50 lg:hidden flex flex-col">
-                        {/* 서랍 헤더 */}
-                        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-slate-800">
-                            <h2 className="font-bold text-lg flex items-center gap-2">
-                                <span className="material-symbols-outlined text-primary">shopping_cart</span>
-                                장보기 목록
-                            </h2>
-                            <div className="flex items-center gap-2">
-                                {missingItems.length > 0 && (
-                                    <button
-                                        onClick={copyToClipboard}
-                                        className="text-xs text-primary font-bold flex items-center gap-1 hover:underline"
-                                    >
-                                        <span className="material-symbols-outlined text-sm">content_copy</span>
-                                        복사
-                                    </button>
-                                )}
-                                <button
-                                    onClick={() => setIsShoppingOpen(false)}
-                                    className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full"
-                                >
-                                    <span className="material-symbols-outlined">close</span>
-                                </button>
-                            </div>
+                    <div className="fixed inset-y-0 right-0 w-full max-w-sm bg-white dark:bg-slate-900 shadow-2xl z-50 lg:hidden flex flex-col pt-10">
+                        {/* 닫기 버튼 */}
+                        <div className="absolute top-4 right-4 z-50">
+                            <button
+                                onClick={() => setIsShoppingOpen(false)}
+                                className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full"
+                            >
+                                <span className="material-symbols-outlined">close</span>
+                            </button>
                         </div>
-
-                        {/* 서랍 바디 */}
-                        <div className="flex-1 overflow-y-auto p-5 flex flex-col gap-5">
-                            {shoppingList.length === 0 ? (
-                                <div className="flex flex-col items-center justify-center flex-1 text-center py-20">
-                                    <span className="material-symbols-outlined text-5xl text-slate-200 dark:text-slate-700 mb-3">shopping_cart</span>
-                                    <p className="text-sm text-slate-400">이번 주 식단을 입력하면<br />필요한 재료가 자동으로 나타나요</p>
-                                </div>
-                            ) : (
-                                <>
-                                    {missingItems.length > 0 && (
-                                        <div>
-                                            <p className="text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">구매 필요 ({missingItems.length})</p>
-                                            <div className="flex flex-col gap-1.5">
-                                                {missingItems.map(item => (
-                                                    <div
-                                                        key={item.name}
-                                                        className={`flex items-center gap-2 p-2.5 border rounded-xl transition-all ${item.isOwnedButLow
-                                                            ? 'bg-rose-50 dark:bg-rose-900/20 border-rose-100 dark:border-rose-800/30'
-                                                            : 'bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-800/30'
-                                                            }`}
-                                                    >
-                                                        <span className={`material-symbols-outlined text-sm ${item.isOwnedButLow ? 'text-rose-500' : 'text-amber-500'}`}>
-                                                            {item.isOwnedButLow ? 'info' : 'shopping_bag'}
-                                                        </span>
-                                                        <div className="flex-1 min-w-0">
-                                                            <div className="flex items-center gap-1.5">
-                                                                <span className="text-sm font-semibold text-slate-800 dark:text-slate-200 truncate">{item.name}</span>
-                                                                {item.isOwnedButLow && (
-                                                                    <span className="shrink-0 text-[10px] px-1.5 py-0.5 bg-rose-100 dark:bg-rose-500/30 text-rose-600 dark:text-rose-400 font-bold rounded-md">재고 부족</span>
-                                                                )}
-                                                            </div>
-                                                            {item.isOwnedButLow && (
-                                                                <p className="text-[10px] text-rose-500/80 font-medium">보유 중이나 모자람</p>
-                                                            )}
-                                                        </div>
-                                                        <span className="text-xs text-slate-400 mr-1">{item.count}회</span>
-                                                        <button
-                                                            onClick={async () => {
-                                                                if (!user) return
-                                                                const existing = inventories.find(i =>
-                                                                    i.ingredient_name.split(' (')[0].trim() === item.name
-                                                                )
-                                                                if (existing) return
-                                                                const { data, error } = await supabase.from('inventory').insert({
-                                                                    user_id: user.id,
-                                                                    ingredient_name: item.name,
-                                                                    expiry_date: null,
-                                                                }).select().single()
-                                                                if (!error && data) setInventories([data, ...inventories])
-                                                            }}
-                                                            className="flex items-center gap-1 text-xs bg-primary/10 hover:bg-primary/20 text-primary font-bold px-2.5 py-1.5 rounded-lg transition-colors shrink-0"
-                                                        >
-                                                            <span className="material-symbols-outlined text-sm">check</span>
-                                                            이미 보유
-                                                        </button>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    )}
-                                    {shoppingList.filter(i => i.inFridge).length > 0 && (
-                                        <div>
-                                            <p className="text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">냉장고 보유 ✅</p>
-                                            <div className="flex flex-col gap-1">
-                                                {shoppingList.filter(i => i.inFridge).map(item => (
-                                                    <div key={item.name} className="flex items-center gap-2 p-2.5 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-800/30 rounded-xl">
-                                                        <span className="material-symbols-outlined text-emerald-500 text-sm">check_circle</span>
-                                                        <span className="flex-1 text-sm font-medium text-slate-600 dark:text-slate-400 line-through">{item.name}</span>
-                                                        <span className="text-xs text-emerald-500 font-bold">보유</span>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    )}
-                                </>
-                            )}
-                        </div>
+                        {/* Shopping Widget (Drawer mode automatically handles scroll) */}
+                        <ShoppingWidget inventories={inventories} localGrid={grid} layout="inline" className="h-full border-0 shadow-none" />
                     </div>
                 </>
             )}
@@ -912,6 +671,6 @@ export default function PlannerPage() {
             <footer className="py-8 border-t border-slate-200 dark:border-slate-800 text-center">
                 <p className="text-slate-400 text-sm">© 2026 맘마로그(MammaLog) — 스마트한 유아식 기록</p>
             </footer>
-        </div>
+        </div >
     )
 }
