@@ -29,6 +29,8 @@ type AppState = {
     setAuthModalOpen: (isOpen: boolean) => void
     isEditorOpen: boolean
     setEditorOpen: (isOpen: boolean) => void
+    isProfileModalOpen: boolean
+    setProfileModalOpen: (isOpen: boolean) => void
 
     // Data State
     logs: MealLog[]
@@ -67,6 +69,8 @@ export const useAppStore = create<AppState>((set) => ({
     setAuthModalOpen: (isOpen) => set({ isAuthModalOpen: isOpen }),
     isEditorOpen: false,
     setEditorOpen: (isOpen) => set({ isEditorOpen: isOpen }),
+    isProfileModalOpen: false,
+    setProfileModalOpen: (isOpen) => set({ isProfileModalOpen: isOpen }),
 
     logs: [],
     editingLog: null,

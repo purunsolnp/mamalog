@@ -77,10 +77,10 @@ export default function Home() {
     logs, setLogs, dailySummaries, setDailySummaries,
     growthCharts, setGrowthCharts,
     editingLog, setEditingLog,
-    setAuthModalOpen
+    setAuthModalOpen,
+    isProfileModalOpen, setProfileModalOpen,
   } = useAppStore()
   const [isAddingNew, setIsAddingNew] = useState(false)
-  const [isProfileModalOpen, setProfileModalOpen] = useState(false)
   const [isGrowthModalOpen, setGrowthModalOpen] = useState(false)
 
   const dateStr = format(selectedDate, 'yyyy-MM-dd')
@@ -153,10 +153,10 @@ export default function Home() {
           <LandingHero onStart={() => setAuthModalOpen(true)} />
         ) : (
           /* ---- Logged in: show Dashboard ---- */
-          <main className="flex-1 max-w-6xl mx-auto w-full px-6 py-8">
+          <main className="flex-1 max-w-6xl mx-auto w-full px-4 md:px-6 py-6 md:py-8">
 
             {/* Title Section */}
-            <div className="flex flex-wrap items-center justify-between gap-4 mb-8 bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 md:mb-8 bg-white dark:bg-slate-900 p-4 md:p-6 rounded-[2rem] border border-slate-100 dark:border-slate-800 shadow-sm">
               <div className="flex items-center gap-4">
                 {currentBaby && (
                   <div
@@ -204,10 +204,10 @@ export default function Home() {
                       setEditorOpen(true)
                     }
                   }}
-                  className="flex items-center gap-2 px-6 py-3 bg-primary text-slate-900 rounded-2xl font-black text-sm shadow-lg shadow-primary/20 hover:brightness-105 active:scale-95 transition-all"
+                  className="flex items-center gap-1 md:gap-2 px-4 md:px-6 py-2.5 md:py-3 bg-primary text-slate-900 rounded-2xl font-black text-xs md:text-sm shadow-lg shadow-primary/20 hover:brightness-105 active:scale-95 transition-all"
                 >
-                  <span className="material-symbols-outlined text-lg">add</span>
-                  식단 기록 추가
+                  <span className="material-symbols-outlined text-base md:text-lg">add</span>
+                  기록 추가
                 </button>
               </div>
             </div>
@@ -215,12 +215,12 @@ export default function Home() {
             <CalendarDashboard />
 
             {/* Summary Strip */}
-            <div className="mt-12">
-              <h3 className="text-lg font-bold mb-6 flex items-center gap-2 text-slate-700 dark:text-slate-300">
-                <span className="material-symbols-outlined text-primary">analytics</span>
+            <div className="mt-8 md:mt-12">
+              <h3 className="text-base md:text-lg font-bold mb-4 md:mb-6 flex items-center gap-2 text-slate-700 dark:text-slate-300">
+                <span className="material-symbols-outlined text-primary text-xl">analytics</span>
                 일간 요약
               </h3>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-6">
                 {[
                   {
                     icon: 'water_drop',
@@ -267,17 +267,17 @@ export default function Home() {
                   <div
                     key={s.label}
                     onClick={s.action}
-                    className={`bg-white dark:bg-slate-900 p-6 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-800 flex items-center gap-4 hover:border-primary/30 transition-all group ${s.action ? 'cursor-pointer' : ''}`}
+                    className={`bg-white dark:bg-slate-900 p-4 md:p-6 rounded-[2rem] shadow-sm border border-slate-100 dark:border-slate-800 flex items-center gap-3 md:gap-4 hover:border-primary/30 transition-all group ${s.action ? 'cursor-pointer' : ''}`}
                   >
-                    <div className={`size-12 rounded-2xl ${s.color} flex items-center justify-center group-hover:scale-110 transition-transform`}>
-                      <span className="material-symbols-outlined text-3xl">{s.icon}</span>
+                    <div className={`size-10 md:size-12 rounded-2xl ${s.color} flex items-center justify-center group-hover:scale-110 transition-transform shrink-0`}>
+                      <span className="material-symbols-outlined text-2xl md:text-3xl">{s.icon}</span>
                     </div>
-                    <div className="flex-1">
-                      <p className="text-xs font-bold text-slate-400 uppercase tracking-wide">{s.label}</p>
-                      <p className="text-xl font-black text-slate-900 dark:text-white truncate">{s.value}</p>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[10px] md:text-xs font-bold text-slate-400 uppercase tracking-wide truncate">{s.label}</p>
+                      <p className="text-lg md:text-xl font-black text-slate-900 dark:text-white truncate">{s.value}</p>
                     </div>
                     {s.action && (
-                      <span className="material-symbols-outlined text-slate-300 group-hover:text-primary transition-colors">settings</span>
+                      <span className="material-symbols-outlined text-slate-300 group-hover:text-primary transition-colors shrink-0">settings</span>
                     )}
                   </div>
                 ))}
@@ -354,7 +354,7 @@ export default function Home() {
                         접기
                       </button>
                     </div>
-                    <MealTabs />
+                    {!editingLog && <MealTabs />}
                     <MealEditor />
                   </div>
                 )}

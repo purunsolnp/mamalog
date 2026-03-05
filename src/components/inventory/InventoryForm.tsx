@@ -7,8 +7,9 @@ import { useAppStore } from '@/lib/store'
 export function InventoryForm() {
     const { user, inventories, setInventories } = useAppStore()
     const [name, setName] = useState('')
-    const [note, setNote] = useState('') // Optional: Could add note to DB or append to name for now.
+    const [note, setNote] = useState('')
     const [expiry, setExpiry] = useState('')
+    const [stockStatus, setStockStatus] = useState<'enough' | 'low'>('enough')
     const [isLoading, setIsLoading] = useState(false)
 
     const handleSubmit = async () => {
@@ -18,7 +19,8 @@ export function InventoryForm() {
         const newIngredient = {
             user_id: user.id,
             ingredient_name: note ? `${name} (${note})` : name,
-            expiry_date: expiry || null
+            expiry_date: expiry || null,
+            stock_status: stockStatus
         }
 
         const { data, error } = await supabase
@@ -32,6 +34,7 @@ export function InventoryForm() {
             setName('')
             setNote('')
             setExpiry('')
+            setStockStatus('enough')
         }
         setIsLoading(false)
     }
@@ -71,6 +74,33 @@ export function InventoryForm() {
                         onChange={(e) => setExpiry(e.target.value)}
                         className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-primary focus:outline-none transition-all text-slate-500"
                     />
+                </div>
+                <div>
+                    <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">재고 상태</label>
+                    <div className="grid grid-cols-2 gap-2">
+                        <button
+                            type="button"
+                            onClick={() => setStockStatus('enough')}
+                            className={`py-2.5 rounded-xl text-sm font-bold border transition-all flex items-center justify-center gap-1.5 ${stockStatus === 'enough'
+                                    ? 'bg-primary/10 border-primary text-primary'
+                                    : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-400'
+                                }`}
+                        >
+                            <span className="material-symbols-outlined text-base">check_circle</span>
+                            충분함
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setStockStatus('low')}
+                            className={`py-2.5 rounded-xl text-sm font-bold border transition-all flex items-center justify-center gap-1.5 ${stockStatus === 'low'
+                                    ? 'bg-amber-100 border-amber-500 text-amber-600'
+                                    : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-400'
+                                }`}
+                        >
+                            <span className="material-symbols-outlined text-base">shopping_cart</span>
+                            모자람
+                        </button>
+                    </div>
                 </div>
                 <button
                     onClick={handleSubmit}

@@ -32,9 +32,11 @@ function computeStats(logs: MealLog[]) {
         count: v.count,
         avgSat: v.totalSat / v.count,
     }))
-    const sortedByAvgSat = [...mealStats].sort((a, b) => b.avgSat - a.avgSat)
+    // avgSat > 0인 항목만 평점 순위에 반영 (식단 계획에서 satisfaction=0으로 저장된 항목 제외)
+    const ratedStats = mealStats.filter(m => m.avgSat > 0)
+    const sortedByAvgSat = [...ratedStats].sort((a, b) => b.avgSat - a.avgSat)
     const bestMeals = sortedByAvgSat.slice(0, 5)
-    const worstMeals = [...mealStats].sort((a, b) => a.avgSat - b.avgSat).slice(0, 5)
+    const worstMeals = [...ratedStats].sort((a, b) => a.avgSat - b.avgSat).slice(0, 5)
 
     // --- Top ingredients (from meal_items OR note_text) ---
     const ingMap: Record<string, number> = {}

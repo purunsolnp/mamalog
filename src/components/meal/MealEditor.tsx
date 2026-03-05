@@ -45,6 +45,7 @@ export function MealEditor() {
     // ref 방식으로 재료 입력 관리 (상태 동기화 타이밍 문제 제거)
     const ingredientRefs = useRef<(HTMLInputElement | null)[]>([])
     const [noteText, setNoteText] = useState('')
+    const [localMealType, setLocalMealType] = useState(selectedMealType)
     const [isSaving, setIsSaving] = useState(false)
     const [saveSuccess, setSaveSuccess] = useState(false)
     const [saveError, setSaveError] = useState<string | null>(null)
@@ -55,15 +56,18 @@ export function MealEditor() {
             setItems(editingLog.meal_items || [createEmptyItem()])
             setNoteText(editingLog.note_text || '')
             setCurrentNutrition(editingLog.nutrition)
+            setLocalMealType(editingLog.meal_type)
         } else {
             // Reset to defaults if not editing
             setItems([createEmptyItem()])
             setNoteText('')
+            setLocalMealType(selectedMealType)
             setCurrentNutrition({ carbs: 3, protein: 2, fat: 1, vitamins: 2 })
         }
         // ref 입력값 전체 초기화
         ingredientRefs.current.forEach(r => { if (r) r.value = '' })
-    }, [editingLog, setCurrentNutrition])
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [editingLog]) // selectedMealType 의존성 제거: 탭 변경 시 localMealType이 초기화되는 버그 방지
 
     // -- Item helpers --
     const addItem = () => {
@@ -120,6 +124,7 @@ export function MealEditor() {
         try {
             if (isEditing && editingLogId) {
                 const updatedLog = await updateMealLog(editingLogId, {
+                    meal_type: localMealType,
                     meal_items: validItems,
                     nutrition: currentNutrition,
                     note_text: noteText.trim() || null,
@@ -156,6 +161,30 @@ export function MealEditor() {
 
     return (
         <div className="bg-white dark:bg-slate-900 rounded-3xl p-8 shadow-sm border border-slate-100 dark:border-slate-800 flex flex-col gap-8">
+
+            {/* ── 편집 모드: 끼니 유형 변경 ── */}
+            {editingLog && (
+                <div>
+                    <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-3 flex items-center gap-2">
+                        <span className="material-symbols-outlined text-primary text-lg">schedule</span>
+                        끼니 유형 변경
+                    </label>
+                    <div className="flex gap-2 flex-wrap">
+                        {['아침', '간식1', '점심', '간식2', '저녁'].map(t => (
+                            <button
+                                key={t}
+                                onClick={() => setLocalMealType(t)}
+                                className={`px-3 py-1.5 rounded-xl text-sm font-bold transition-all ${localMealType === t
+                                    ? 'bg-primary text-primary-foreground shadow-sm'
+                                    : 'bg-slate-100 dark:bg-slate-800 text-slate-500 hover:bg-primary/10 hover:text-primary'
+                                    }`}
+                            >
+                                {t}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            )}
 
             {/* ── Dish Items ── */}
             <div>

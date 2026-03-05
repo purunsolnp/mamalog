@@ -97,7 +97,7 @@ export const deleteMealLog = async (id: string) => {
 // Database Helper: Update Meal Log
 export const updateMealLog = async (
     id: string,
-    fields: Partial<Pick<MealLog, 'meal_name' | 'meal_items' | 'note_text' | 'satisfaction' | 'nutrition'>>
+    fields: Partial<Pick<MealLog, 'meal_name' | 'meal_items' | 'note_text' | 'satisfaction' | 'nutrition' | 'meal_type'>>
 ) => {
     const { data, error } = await supabase
         .from('meal_logs')

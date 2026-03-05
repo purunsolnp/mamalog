@@ -49,6 +49,7 @@ export type Inventory = {
     user_id: string
     ingredient_name: string
     expiry_date: string | null
+    stock_status: 'enough' | 'low' | null  // null = 미설정, 'enough' = 충분함, 'low' = 모자람(구매필요)
     created_at: string
 }
 
