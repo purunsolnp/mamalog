@@ -94,8 +94,8 @@ export function ShoppingWidget({ inventories, localGrid, layout = 'inline', clas
     const sufficientItems = shoppingList.filter(i => i.inFridge && !i.isOwnedButLow)
 
     const copyToClipboard = () => {
-        const textToBuy = [...missingItems, ...lowStockItems].map(i => `• ${i.name} (${i.count}회)`).join('\n')
-        navigator.clipboard.writeText(`📋 장보기 목록 (${periodDays}일치)\n${textToBuy}`)
+        const textToBuy = [...missingItems, ...lowStockItems].map(i => i.name).join(', ')
+        navigator.clipboard.writeText(textToBuy)
     }
 
     return (
