@@ -12,7 +12,7 @@ import { PlanCell } from '@/types/database.types'
 import { format, addDays, startOfWeek } from 'date-fns'
 
 export default function InventoryPage() {
-    const { user, currentBaby, inventories } = useAppStore()
+    const { user, currentBaby, inventories, setLogs } = useAppStore()
     const [localGrid, setLocalGrid] = useState<Record<string, PlanCell>>({})
     const [isShoppingOpen, setIsShoppingOpen] = useState(false)
 
@@ -27,12 +27,15 @@ export default function InventoryPage() {
             // 현재 주부터 다음 주까지 충분히 가져옴 (7일치 위젯 옵션 지원을 위해 14일 가져옴)
             const endStr = format(addDays(mon, 14), 'yyyy-MM-dd')
 
+            // 추천 메뉴를 위해 과거 90일치를 가져오되, 위젯을 위해 다음주 14일치까지 포함
+            const past90Str = format(addDays(today, -90), 'yyyy-MM-dd')
+
             const { data, error } = await supabase
                 .from('meal_logs')
                 .select('*')
                 .eq('user_id', user.id)
                 .eq('baby_id', currentBaby.id)
-                .gte('date', startStr)
+                .gte('date', past90Str)
                 .lte('date', endStr)
 
             if (!error && data) {
@@ -42,13 +45,18 @@ export default function InventoryPage() {
                     const dishes = log.meal_items?.map((item: any) => item.name) || []
                     const ingredients = log.meal_items?.flatMap((item: any) => item.ingredients || []).join(', ') || ''
 
-                    newGrid[key] = {
-                        id: log.id,
-                        dishes: dishes.length > 0 ? dishes : [''],
-                        ingredients
+                    // Shopping widget range
+                    if (log.date >= startStr && log.date <= endStr) {
+                        newGrid[key] = {
+                            id: log.id,
+                            dishes: dishes.length > 0 ? dishes : [''],
+                            ingredients
+                        }
                     }
                 })
                 setLocalGrid(newGrid)
+                // Set global logs for MenuRecommender
+                setLogs(data as any)
             }
         }
         fetchMealLogs()

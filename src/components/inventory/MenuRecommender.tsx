@@ -15,7 +15,7 @@ export function MenuRecommender() {
     const { inventories, logs } = useAppStore()
 
     const fridgeItems = useMemo(
-        () => new Set(inventories.map(i => i.ingredient_name.split(' (')[0].trim())),
+        () => new Set(inventories.filter(i => i.stock_status !== 'low').map(i => i.ingredient_name.split(' (')[0].trim())),
         [inventories]
     )
 
@@ -82,10 +82,10 @@ export function MenuRecommender() {
                             <div className="flex items-center justify-between mb-2">
                                 <span className="font-bold text-sm text-slate-900 dark:text-white">{menu.name}</span>
                                 <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${menu.matchPct === 100
-                                        ? 'bg-primary/20 text-primary'
-                                        : menu.matchPct >= 50
-                                            ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-300'
-                                            : 'bg-slate-200 text-slate-500 dark:bg-slate-700'
+                                    ? 'bg-primary/20 text-primary'
+                                    : menu.matchPct >= 50
+                                        ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-300'
+                                        : 'bg-slate-200 text-slate-500 dark:bg-slate-700'
                                     }`}>
                                     {menu.matchPct}% 보유
                                 </span>
