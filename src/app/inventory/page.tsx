@@ -3,6 +3,7 @@
 import { Header } from '@/components/layout/Header'
 import { InventoryList } from '@/components/inventory/InventoryList'
 import { InventoryForm } from '@/components/inventory/InventoryForm'
+import { MenuRecommender } from '@/components/inventory/MenuRecommender'
 
 export default function InventoryPage() {
     return (
@@ -32,9 +33,10 @@ export default function InventoryPage() {
                             <InventoryList />
                         </div>
 
-                        {/* Right Column: Add Form */}
+                        {/* Right Column: Add Form + Recommender */}
                         <div className="lg:col-span-4 flex flex-col gap-6">
                             <InventoryForm />
+                            <MenuRecommender />
                         </div>
                     </div>
                 </main>

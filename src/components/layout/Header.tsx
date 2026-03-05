@@ -62,6 +62,14 @@ export function Header() {
                         >
                             냉장고 관리
                         </Link>
+                        <Link
+                            href="/planner"
+                            className={`text-sm font-semibold transition-all pb-1 border-b-2 ${pathname === '/planner'
+                                ? 'text-primary border-primary'
+                                : 'text-slate-600 dark:text-slate-400 border-transparent hover:text-primary'}`}
+                        >
+                            식단 계획
+                        </Link>
                     </nav>
                 )}
             </div>

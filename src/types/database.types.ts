@@ -87,3 +87,11 @@ export type GrowthChart = {
     p95: number | null
     p97: number | null
 }
+
+// 주간 식단 계획 (클라이언트 로컬 상태)
+export type MealPlan = {
+    date: string        // YYYY-MM-DD
+    meal_type: string   // '아침'|'간식1'|'점심'|'간식2'|'저녁'
+    dish_name: string
+    ingredients: string[]
+}
