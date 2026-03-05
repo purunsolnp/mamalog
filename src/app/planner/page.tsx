@@ -87,9 +87,12 @@ export default function PlannerPage() {
     }, [user, weekStart, weekEnd, currentBaby])
 
     useEffect(() => {
-        setGrid({}) // 주간 변경 시 기존 그리드 초기화
+        if (!user || !currentBaby) return
+
+        // Reset grid before fetching new data to avoid showing old data
+        setGrid({})
         loadLogsIntoGrid()
-    }, [loadLogsIntoGrid])
+    }, [loadLogsIntoGrid, user, currentBaby])
 
     // 과거 기록으로 자동완성 후보
     const [pastMenus, setPastMenus] = useState<string[]>([])
