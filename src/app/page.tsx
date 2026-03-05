@@ -107,15 +107,13 @@ export default function Home() {
           setCurrentBaby(targetBaby)
         }
 
-        // 2. Fetch logs and summaries for the current baby
-        const [mealData, summaryData, profileData, latestSummary] = await Promise.all([
-          getMealLogs(user!.id, start, end, targetBaby?.id),
+        // 2. Fetch summaries for the current baby (Meal logs are handled by Calendar component)
+        const [summaryData, profileData, latestSummary] = await Promise.all([
           getDailySummaries(user!.id, start, end, targetBaby?.id),
           getProfile(user!.id),
           targetBaby ? getLatestGrowthSummary(user!.id, targetBaby.id) : null
         ])
 
-        setLogs(mealData)
         setDailySummaries(summaryData)
         setLatestGrowthSummary(latestSummary)
         if (profileData) setProfile(profileData)
@@ -347,20 +345,24 @@ export default function Home() {
                   </button>
                 ) : (
                   <div>
-                    <div className="flex items-center justify-between mb-4">
-                      <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider">
-                        {editingLog ? '식단 수정' : '새 식단 추가'}
-                      </h3>
-                      <button
-                        onClick={() => { setIsAddingNew(false); setEditingLog(null) }}
-                        className="text-xs text-slate-400 hover:text-slate-600 flex items-center gap-1"
-                      >
-                        <span className="material-symbols-outlined text-sm">expand_less</span>
-                        접기
-                      </button>
-                    </div>
-                    {!editingLog && <MealTabs />}
-                    <MealEditor />
+                    {isAddingNew && (
+                      <>
+                        <div className="flex items-center justify-between mb-4">
+                          <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider">
+                            {'새 식단 추가'}
+                          </h3>
+                          <button
+                            onClick={() => { setIsAddingNew(false); setEditingLog(null) }}
+                            className="text-xs text-slate-400 hover:text-slate-600 flex items-center gap-1"
+                          >
+                            <span className="material-symbols-outlined text-sm">expand_less</span>
+                            접기
+                          </button>
+                        </div>
+                        <MealTabs />
+                        <MealEditor />
+                      </>
+                    )}
                   </div>
                 )}
               </div>

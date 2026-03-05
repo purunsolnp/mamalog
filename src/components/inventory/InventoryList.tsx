@@ -116,7 +116,7 @@ export function InventoryList() {
     }
 
     return (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {inventories.map((item) => {
                 let daysLeft = null
                 let expiryColor = 'text-slate-500'
@@ -180,8 +180,8 @@ export function InventoryList() {
                                             type="button"
                                             onClick={() => setEditStockStatus('enough')}
                                             className={`py-2 rounded-xl text-xs font-bold border transition-all flex items-center justify-center gap-1 ${editStockStatus === 'enough'
-                                                    ? 'bg-primary/10 border-primary text-primary'
-                                                    : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-400'
+                                                ? 'bg-primary/10 border-primary text-primary'
+                                                : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-400'
                                                 }`}
                                         >
                                             <span className="material-symbols-outlined text-sm">check_circle</span>
@@ -191,8 +191,8 @@ export function InventoryList() {
                                             type="button"
                                             onClick={() => setEditStockStatus('low')}
                                             className={`py-2 rounded-xl text-xs font-bold border transition-all flex items-center justify-center gap-1 ${editStockStatus === 'low'
-                                                    ? 'bg-amber-100 border-amber-500 text-amber-600'
-                                                    : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-400'
+                                                ? 'bg-amber-100 border-amber-500 text-amber-600'
+                                                : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-400'
                                                 }`}
                                         >
                                             <span className="material-symbols-outlined text-sm">shopping_cart</span>

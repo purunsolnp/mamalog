@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { MealLog } from '@/types/database.types'
 import { deleteMealLog, updateMealLog } from '@/lib/api'
 import { useAppStore } from '@/lib/store'
+import { MealEditor } from './MealEditor'
 
 const SAT_MAP: Record<number, { icon: string; label: string; color: string; activeBg: string }> = {
     5: { icon: 'sentiment_very_satisfied', label: '다 먹음', color: 'text-primary', activeBg: 'bg-primary/10' },
@@ -22,10 +23,13 @@ const MEAL_TYPE_ICON: Record<string, string> = {
 }
 
 export function MealLogCard({ log }: { log: MealLog }) {
-    const { logs, setLogs, setEditingLog, setEditorOpen, setDate, setMealType } = useAppStore()
+    const { logs, setLogs, editingLog, setEditingLog, setEditorOpen, setDate, setMealType } = useAppStore()
     const [isExpanded, setIsExpanded] = useState(false)
     const [isDeleting, setIsDeleting] = useState(false)
     const [isWrapping, setIsWrapping] = useState(false)
+    const [isQuickEvalOpen, setIsQuickEvalOpen] = useState(false)
+
+    const isEditing = editingLog?.id === log.id
 
     const hasItems = log.meal_items && log.meal_items.length > 0
     const mealIcon = MEAL_TYPE_ICON[log.meal_type] ?? 'restaurant'
@@ -59,11 +63,31 @@ export function MealLogCard({ log }: { log: MealLog }) {
         setEditingLog(log)
         setDate(new Date(log.date))
         setMealType(log.meal_type)
-        setEditorOpen(true)
+        setIsExpanded(true)
+        // setEditorOpen(true) <- No longer opening global editor for existing logs
+    }
+
+    const handleQuickSat = async (satValue: number) => {
+        try {
+            const updatedItems = hasItems
+                ? log.meal_items!.map(item => ({ ...item, satisfaction: satValue }))
+                : log.meal_items
+
+            await updateMealLog(log.id, {
+                satisfaction: hasItems ? null : satValue,
+                meal_items: updatedItems
+            })
+
+            // Update local state
+            setLogs(logs.map(l => l.id === log.id ? { ...l, satisfaction: hasItems ? null : satValue, meal_items: updatedItems } : l))
+            setIsQuickEvalOpen(false)
+        } catch {
+            alert('평가 수정에 실패했습니다.')
+        }
     }
 
     return (
-        <div className={`bg-slate-50 dark:bg-slate-800/60 rounded-2xl border transition-all overflow-hidden ${isExpanded ? 'border-primary/30 bg-white dark:bg-slate-800' : 'border-slate-100 dark:border-slate-700 hover:border-primary/20'
+        <div className={`bg-slate-50 dark:bg-slate-800/60 rounded-2xl border transition-all relative ${isExpanded ? 'border-primary/30 bg-white dark:bg-slate-800 z-10' : 'border-slate-100 dark:border-slate-700 hover:border-primary/20 hover:z-10'
             }`}>
 
             {/* ── Collapsed Row ── */}
@@ -99,9 +123,32 @@ export function MealLogCard({ log }: { log: MealLog }) {
                 </div>
 
                 {/* Satisfaction badge */}
-                <div className={`flex items-center gap-1 shrink-0 ${satInfo.color}`}>
-                    <span className="material-symbols-outlined text-lg">{satInfo.icon}</span>
-                    <span className="text-xs font-semibold hidden sm:block">{satInfo.label}</span>
+                <div className="relative">
+                    <button
+                        onClick={(e) => { e.stopPropagation(); setIsQuickEvalOpen(v => !v) }}
+                        className={`flex items-center gap-1 shrink-0 p-1.5 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-700 transition-all ${satInfo.color}`}
+                    >
+                        <span className="material-symbols-outlined text-lg">{satInfo.icon}</span>
+                        <span className="text-xs font-semibold hidden sm:block">{satInfo.label}</span>
+                    </button>
+
+                    {isQuickEvalOpen && (
+                        <div
+                            className="absolute bottom-full right-0 mb-2 p-2 bg-white dark:bg-slate-800 rounded-2xl shadow-2xl border border-slate-100 dark:border-slate-700 z-50 flex gap-1 animate-in fade-in slide-in-from-bottom-2"
+                            onClick={e => e.stopPropagation()}
+                        >
+                            {[5, 4, 2, 1, 0].map(val => (
+                                <button
+                                    key={val}
+                                    onClick={() => handleQuickSat(val)}
+                                    className={`size-10 rounded-xl flex items-center justify-center transition-all ${SAT_MAP[val].activeBg} ${SAT_MAP[val].color} hover:scale-110`}
+                                    title={SAT_MAP[val].label}
+                                >
+                                    <span className="material-symbols-outlined">{SAT_MAP[val].icon}</span>
+                                </button>
+                            ))}
+                        </div>
+                    )}
                 </div>
 
                 {/* Actions */}
@@ -133,60 +180,68 @@ export function MealLogCard({ log }: { log: MealLog }) {
             {isExpanded && (
                 <div className="px-4 pb-4 border-t border-slate-100 dark:border-slate-700 pt-4 flex flex-col gap-3">
 
-                    {hasItems ? (
-                        /* New format: per-dish items */
-                        log.meal_items!.map((item, idx) => {
-                            const s = SAT_MAP[item.satisfaction] ?? SAT_MAP[0]
-                            return (
-                                <div key={idx} className="flex items-start gap-3 p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-700">
-                                    <div className={`size-8 rounded-full shrink-0 flex items-center justify-center ${s.activeBg} ${s.color}`}>
-                                        <span className="material-symbols-outlined text-base">{s.icon}</span>
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                        <p className="font-bold text-sm text-slate-900 dark:text-white">{item.name}</p>
-                                        {item.ingredients.length > 0 && (
-                                            <p className="text-xs text-slate-400 mt-0.5">{item.ingredients.join(', ')}</p>
-                                        )}
-                                    </div>
-                                    <span className={`text-xs font-bold shrink-0 ${s.color}`}>{s.label}</span>
-                                </div>
-                            )
-                        })
+                    {isEditing ? (
+                        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-primary/20 shadow-inner">
+                            <MealEditor />
+                        </div>
                     ) : (
-                        /* Legacy format: single meal_name + satisfaction */
-                        <div className="flex items-center gap-3 p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-700">
-                            <span className={`material-symbols-outlined text-xl ${satInfo.color}`}>{satInfo.icon}</span>
-                            <div>
-                                <p className="font-bold text-sm">{log.meal_name || '(이름 없음)'}</p>
-                                <p className="text-xs text-slate-400">{satInfo.label}</p>
-                            </div>
-                        </div>
-                    )}
+                        <>
+                            {hasItems ? (
+                                /* New format: per-dish items */
+                                log.meal_items!.map((item, idx) => {
+                                    const s = SAT_MAP[item.satisfaction] ?? SAT_MAP[0]
+                                    return (
+                                        <div key={idx} className="flex items-start gap-3 p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-700">
+                                            <div className={`size-8 rounded-full shrink-0 flex items-center justify-center ${s.activeBg} ${s.color}`}>
+                                                <span className="material-symbols-outlined text-base">{s.icon}</span>
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <p className="font-bold text-sm text-slate-900 dark:text-white">{item.name}</p>
+                                                {item.ingredients.length > 0 && (
+                                                    <p className="text-xs text-slate-400 mt-0.5">{item.ingredients.join(', ')}</p>
+                                                )}
+                                            </div>
+                                            <span className={`text-xs font-bold shrink-0 ${s.color}`}>{s.label}</span>
+                                        </div>
+                                    )
+                                })
+                            ) : (
+                                /* Legacy format: single meal_name + satisfaction */
+                                <div className="flex items-center gap-3 p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-700">
+                                    <span className={`material-symbols-outlined text-xl ${satInfo.color}`}>{satInfo.icon}</span>
+                                    <div>
+                                        <p className="font-bold text-sm">{log.meal_name || '(이름 없음)'}</p>
+                                        <p className="text-xs text-slate-400">{satInfo.label}</p>
+                                    </div>
+                                </div>
+                            )}
 
-                    {/* Nutrition */}
-                    {log.nutrition && (
-                        <div className="flex gap-2 mt-1 flex-wrap">
-                            {[
-                                { key: 'carbs', label: '탄수', color: 'bg-orange-100 text-orange-600' },
-                                { key: 'protein', label: '단백', color: 'bg-red-100 text-red-600' },
-                                { key: 'fat', label: '지방', color: 'bg-yellow-100 text-yellow-600' },
-                                { key: 'vitamins', label: '비타민', color: 'bg-green-100 text-green-600' },
-                            ].map(({ key, label, color }) => {
-                                const val = (log.nutrition as Record<string, number>)[key] ?? 0
-                                return (
-                                    <span key={key} className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${color}`}>
-                                        {label} {'●'.repeat(val)}{'○'.repeat(Math.max(0, 3 - val))}
-                                    </span>
-                                )
-                            })}
-                        </div>
-                    )}
+                            {/* Nutrition */}
+                            {log.nutrition && (
+                                <div className="flex gap-2 mt-1 flex-wrap">
+                                    {[
+                                        { key: 'carbs', label: '탄수', color: 'bg-orange-100 text-orange-600' },
+                                        { key: 'protein', label: '단백', color: 'bg-red-100 text-red-600' },
+                                        { key: 'fat', label: '지방', color: 'bg-yellow-100 text-yellow-600' },
+                                        { key: 'vitamins', label: '비타민', color: 'bg-green-100 text-green-600' },
+                                    ].map(({ key, label, color }) => {
+                                        const val = (log.nutrition as Record<string, number>)[key] ?? 0
+                                        return (
+                                            <span key={key} className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${color}`}>
+                                                {label} {'●'.repeat(val)}{'○'.repeat(Math.max(0, 3 - val))}
+                                            </span>
+                                        )
+                                    })}
+                                </div>
+                            )}
 
-                    {/* Note */}
-                    {log.note_text && (
-                        <p className="text-xs text-slate-500 bg-slate-50 dark:bg-slate-800 rounded-xl p-3 leading-relaxed">
-                            💬 {log.note_text}
-                        </p>
+                            {/* Note */}
+                            {log.note_text && (
+                                <p className="text-xs text-slate-500 bg-slate-50 dark:bg-slate-800 rounded-xl p-3 leading-relaxed">
+                                    💬 {log.note_text}
+                                </p>
+                            )}
+                        </>
                     )}
                 </div>
             )}

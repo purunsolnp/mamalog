@@ -57,10 +57,10 @@ export default function PlannerPage() {
 
     // DB에서 식단 기록을 불러와 그리드에 채우기
     const loadLogsIntoGrid = useCallback(async () => {
-        if (!user) return
+        if (!user || !currentBaby) return
         isDbLoading.current = true
         try {
-            const logs = await getMealLogs(user.id, weekStart, weekEnd)
+            const logs = await getMealLogs(user.id, weekStart, weekEnd, currentBaby.id)
             setGrid(prev => {
                 const next = { ...prev }
                 for (const log of logs) {
@@ -91,10 +91,11 @@ export default function PlannerPage() {
     // 과거 기록으로 자동완성 후보
     const [pastMenus, setPastMenus] = useState<string[]>([])
     useEffect(() => {
-        if (!user) return
+        if (!user || !currentBaby) return
         getMealLogs(user.id,
             format(addDays(new Date(), -90), 'yyyy-MM-dd'),
-            format(new Date(), 'yyyy-MM-dd')
+            format(new Date(), 'yyyy-MM-dd'),
+            currentBaby.id
         ).then(logs => {
             const names = new Set<string>()
             for (const l of logs) {
@@ -170,6 +171,7 @@ export default function PlannerPage() {
         setIsSaving(true)
         try {
             const insertedIds: Record<string, string> = {}
+            const deletedIds: Record<string, string> = {}
             const promises: Promise<unknown>[] = []
 
             for (const [key, cell] of Object.entries(currentGrid)) {
@@ -190,14 +192,28 @@ export default function PlannerPage() {
                 }))
 
                 if (cell.id) {
-                    // 기존 기록 업데이트
-                    promises.push(
-                        Promise.resolve(
-                            supabase.from('meal_logs')
-                                .update({ meal_items: items })
-                                .eq('id', cell.id)
+                    if (validDishes.length > 0) {
+                        // 기존 기록 업데이트
+                        promises.push(
+                            Promise.resolve(
+                                supabase.from('meal_logs')
+                                    .update({ meal_items: items })
+                                    .eq('id', cell.id)
+                            )
                         )
-                    )
+                    } else {
+                        // 내용이 없으면 DB에서 실제 삭제
+                        promises.push(
+                            Promise.resolve(
+                                supabase.from('meal_logs')
+                                    .delete()
+                                    .eq('id', cell.id)
+                            ).then(() => {
+                                // 삭제된 ID는 그리드에서 제거
+                                deletedIds[key] = cell.id!
+                            })
+                        )
+                    }
                 } else if (items.length > 0) {
                     // 새 기록 삽입 - 반환된 ID를 그리드에 반영
                     promises.push(
@@ -223,12 +239,18 @@ export default function PlannerPage() {
             await Promise.all(promises)
 
             // 새로 삽입된 기록의 ID를 그리드에 반영 (reload 없이)
-            if (Object.keys(insertedIds).length > 0) {
+            if (Object.keys(insertedIds).length > 0 || Object.keys(deletedIds).length > 0) {
                 isDbLoading.current = true
                 setGrid(prev => {
                     const next = { ...prev }
                     for (const [key, id] of Object.entries(insertedIds)) {
                         if (next[key]) next[key] = { ...next[key], id }
+                    }
+                    for (const key of Object.keys(deletedIds)) {
+                        if (next[key]) {
+                            const { id: _, ...rest } = next[key]
+                            next[key] = { ...rest, dishes: [''], ingredients: '' }
+                        }
                     }
                     return next
                 })
@@ -282,7 +304,14 @@ export default function PlannerPage() {
     // 장보기 목록 계산
     const shoppingList = useMemo(() => {
         const needed = new Map<string, number>()
-        Object.values(grid).forEach(cell => {
+        const today = format(new Date(), 'yyyy-MM-dd')
+
+        Object.entries(grid).forEach(([key, cell]) => {
+            const underscoreIdx = key.indexOf('_')
+            const dateStr = key.slice(0, underscoreIdx)
+            // 오늘 날짜 이전은 장보기 목록에서 제외
+            if (dateStr < today) return
+
             const validDishes = cell.dishes.filter(d => d.trim())
             if (!validDishes.length) return
             const knownIngNames = inventories.map(i => i.ingredient_name)
@@ -470,17 +499,15 @@ export default function PlannerPage() {
                                                                             {pastMenus.map(m => <option key={`m-${m}`} value={m} />)}
                                                                         </datalist>
                                                                         {/* 항목이 2개 이상일 때 삭제 버튼 */}
-                                                                        {dishes.length > 1 && (
-                                                                            <button
-                                                                                onClick={() => {
-                                                                                    const newDishes = dishes.filter((_, i) => i !== idx)
-                                                                                    updateCell(d, mealType, { dishes: newDishes })
-                                                                                }}
-                                                                                className="p-1 text-slate-400 hover:text-red-400 transition-colors shrink-0"
-                                                                            >
-                                                                                <span className="material-symbols-outlined text-base">close</span>
-                                                                            </button>
-                                                                        )}
+                                                                        <button
+                                                                            onClick={() => {
+                                                                                const newDishes = dishes.filter((_, i) => i !== idx)
+                                                                                updateCell(d, mealType, { dishes: newDishes })
+                                                                            }}
+                                                                            className="p-1 text-slate-400 hover:text-red-400 transition-colors shrink-0"
+                                                                        >
+                                                                            <span className="material-symbols-outlined text-base">close</span>
+                                                                        </button>
                                                                     </div>
                                                                 ))}
 
@@ -676,17 +703,15 @@ export default function PlannerPage() {
                                                         {pastMenus.map(m => <option key={`modal-${m}`} value={m} />)}
                                                     </datalist>
                                                     {/* 삭제 버튼 (2개 이상일 때만) */}
-                                                    {dishes.length > 1 && (
-                                                        <button
-                                                            onClick={() => {
-                                                                const newDishes = dishes.filter((_, i) => i !== idx)
-                                                                updateCell(selectedCell.date, selectedCell.mealType, { dishes: newDishes })
-                                                            }}
-                                                            className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full transition-colors shrink-0"
-                                                        >
-                                                            <span className="material-symbols-outlined text-lg">delete</span>
-                                                        </button>
-                                                    )}
+                                                    <button
+                                                        onClick={() => {
+                                                            const newDishes = dishes.filter((_, i) => i !== idx)
+                                                            updateCell(selectedCell.date, selectedCell.mealType, { dishes: newDishes })
+                                                        }}
+                                                        className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full transition-colors shrink-0"
+                                                    >
+                                                        <span className="material-symbols-outlined text-lg">delete</span>
+                                                    </button>
                                                 </div>
                                             ))}
                                         </div>

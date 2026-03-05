@@ -11,7 +11,7 @@ import { useAppStore } from '@/lib/store'
 import { getMealLogs } from '@/lib/api'
 
 export function CalendarDashboard() {
-    const { user, selectedDate, setDate, setEditorOpen, logs, setLogs } = useAppStore()
+    const { user, currentBaby, selectedDate, setDate, setEditorOpen, logs, setLogs } = useAppStore()
     const [currentDate, setCurrentDate] = useState(new Date())
     const [isLoading, setIsLoading] = useState(false)
     const [viewMode, setViewMode] = useState<'week' | 'month'>('month')
@@ -64,7 +64,8 @@ export function CalendarDashboard() {
                 const data = await getMealLogs(
                     user.id,
                     format(queryStart, 'yyyy-MM-dd'),
-                    format(queryEnd, 'yyyy-MM-dd')
+                    format(queryEnd, 'yyyy-MM-dd'),
+                    currentBaby?.id
                 )
                 setLogs(data)
             } catch (error) {
@@ -75,7 +76,7 @@ export function CalendarDashboard() {
         }
 
         fetchLogs()
-    }, [user, currentDate, viewMode, setLogs])
+    }, [user, currentDate, viewMode, setLogs, currentBaby?.id])
 
 
     const onDateClick = (day: Date) => {
