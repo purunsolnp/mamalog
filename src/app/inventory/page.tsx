@@ -41,15 +41,17 @@ export default function InventoryPage() {
                 const newGrid: Record<string, PlanCell> = {}
                 data.forEach(log => {
                     const key = `${log.date}_${log.meal_type}`
-                    const items = log.meal_items?.map((item: any) => ({ name: item.name, satisfaction: item.satisfaction || 0 })) || []
-                    const ingredients = log.meal_items?.flatMap((item: any) => item.ingredients || []).join(', ') || ''
+                    const items = log.meal_items?.map((item: any) => ({
+                        name: item.name,
+                        satisfaction: item.satisfaction || 0,
+                        ingredients: item.ingredients || []
+                    })) || []
 
                     // Shopping widget range
                     if (log.date >= startStr && log.date <= endStr) {
                         newGrid[key] = {
                             id: log.id,
-                            items: items.length > 0 ? items : [{ name: '', satisfaction: 0 }],
-                            ingredients
+                            items: items.length > 0 ? items : [{ name: '', satisfaction: 0, ingredients: [] }]
                         }
                     }
                 })
