@@ -6,7 +6,7 @@ import { saveDailySummary } from '@/lib/api'
 import { format } from 'date-fns'
 
 export function DailySummaryEditor() {
-    const { user, selectedDate, dailySummaries, setDailySummaries, currentBaby } = useAppStore()
+    const { user, selectedDate, dailySummaries, setDailySummaries, currentBaby, latestGrowthSummary, setLatestGrowthSummary } = useAppStore()
 
     const dateStr = format(selectedDate, 'yyyy-MM-dd')
     const existingSummary = dailySummaries.find(s => s.date === dateStr && s.baby_id === currentBaby?.id)
@@ -52,6 +52,13 @@ export function DailySummaryEditor() {
             // Update local store
             const otherSummaries = dailySummaries.filter(s => !(s.date === dateStr && s.baby_id === updated.baby_id))
             setDailySummaries([...otherSummaries, updated])
+
+            // Update latest growth summary if this is a more recent or new growth record
+            if (updated.weight_kg || updated.height_cm) {
+                if (!latestGrowthSummary || updated.date >= latestGrowthSummary.date) {
+                    setLatestGrowthSummary(updated)
+                }
+            }
 
             setSaveSuccess(true)
             setTimeout(() => setSaveSuccess(false), 2000)

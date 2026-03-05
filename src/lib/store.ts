@@ -41,6 +41,8 @@ type AppState = {
     setInventories: (inventories: Inventory[]) => void
     dailySummaries: DailySummary[]
     setDailySummaries: (summaries: DailySummary[]) => void
+    latestGrowthSummary: DailySummary | null
+    setLatestGrowthSummary: (summary: DailySummary | null) => void
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -80,4 +82,6 @@ export const useAppStore = create<AppState>((set) => ({
     setInventories: (inventories) => set({ inventories }),
     dailySummaries: [],
     setDailySummaries: (summaries) => set({ dailySummaries: summaries }),
+    latestGrowthSummary: null,
+    setLatestGrowthSummary: (latestGrowthSummary) => set({ latestGrowthSummary }),
 }))

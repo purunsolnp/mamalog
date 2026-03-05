@@ -8,6 +8,7 @@ import { AuthModal } from '@/components/auth/AuthModal'
 import { format, addDays, startOfWeek } from 'date-fns'
 import { ko } from 'date-fns/locale'
 import { supabase } from '@/lib/supabase'
+import { normalizeIngredient, extractIngredients, smartExtractIngredients } from '@/lib/ingredients'
 
 const MEAL_TYPES = ['아침', '간식1', '점심', '간식2', '저녁']
 const MEAL_EMOJI: Record<string, string> = {
@@ -109,7 +110,7 @@ export default function PlannerPage() {
         () => new Set(
             inventories
                 .filter(i => i.stock_status === 'low')
-                .map(i => i.ingredient_name.split(' (')[0].trim())
+                .map(i => normalizeIngredient(i.ingredient_name.split(' (')[0].trim()))
         ),
         [inventories]
     )
@@ -118,7 +119,7 @@ export default function PlannerPage() {
         () => new Set(
             inventories
                 .filter(i => i.stock_status !== 'low')
-                .map(i => i.ingredient_name.split(' (')[0].trim())
+                .map(i => normalizeIngredient(i.ingredient_name.split(' (')[0].trim()))
         ),
         [inventories]
     )
@@ -136,6 +137,29 @@ export default function PlannerPage() {
             }
         }))
     }, [])
+
+    // 메뉴명 입력 시 재료 자동 추출 도우미
+    const handleDishBlur = useCallback((date: string, mealType: string, dishName: string) => {
+        if (!dishName.trim()) return
+
+        const key = `${date}_${mealType}`
+        const cell = grid[key] ?? { dishes: [], ingredients: '' }
+        const knownIngNames = inventories.map(i => i.ingredient_name)
+        const extracted = smartExtractIngredients(dishName, knownIngNames)
+
+        if (extracted.length > 0) {
+            const currentIngs = cell.ingredients
+                ? cell.ingredients.split(/[,\s]+/).map(s => s.trim()).filter(Boolean)
+                : []
+
+            const combined = new Set([...currentIngs, ...extracted])
+            const newIngString = Array.from(combined).join(', ')
+
+            if (newIngString !== cell.ingredients) {
+                updateCell(date, mealType, { ingredients: newIngString })
+            }
+        }
+    }, [grid, inventories, updateCell])
 
     // === 자동 저장 로직 (디바운스) ===
     // 최신 saveGridToDb를 항상 참조하기 위한 ref
@@ -157,9 +181,8 @@ export default function PlannerPage() {
                 const date = key.slice(0, underscoreIdx)
                 const mealType = key.slice(underscoreIdx + 1)
 
-                const ingredientsArray = cell.ingredients
-                    ? cell.ingredients.split(/[,\s]+/).map(s => s.trim()).filter(Boolean)
-                    : []
+                const knownIngNames = inventories.map(i => i.ingredient_name)
+                const ingredientsArray = smartExtractIngredients(cell.ingredients, knownIngNames)
                 const items = validDishes.map(name => ({
                     name: name.trim(),
                     ingredients: ingredientsArray,
@@ -262,9 +285,10 @@ export default function PlannerPage() {
         Object.values(grid).forEach(cell => {
             const validDishes = cell.dishes.filter(d => d.trim())
             if (!validDishes.length) return
+            const knownIngNames = inventories.map(i => i.ingredient_name)
             const ings = cell.ingredients
-                ? cell.ingredients.split(/[,\s]+/).map(s => s.trim()).filter(Boolean)
-                : validDishes.flatMap(d => d.trim().split(/\s+/).filter(Boolean))
+                ? smartExtractIngredients(cell.ingredients, knownIngNames)
+                : validDishes.flatMap(d => smartExtractIngredients(d.trim(), knownIngNames))
             ings.forEach(ing => needed.set(ing, (needed.get(ing) ?? 0) + 1))
         })
         const result: { name: string; count: number; inFridge: boolean; isOwnedButLow: boolean }[] = []
@@ -436,6 +460,10 @@ export default function PlannerPage() {
                                                                                 updateCell(d, mealType, { dishes: newDishes })
                                                                             }}
                                                                             placeholder={idx === 0 ? "메뉴명을 입력하세요" : "음식 추가..."}
+                                                                            onBlur={e => handleDishBlur(d, mealType, e.target.value)}
+                                                                            onKeyUp={e => {
+                                                                                if (e.key === 'Enter') handleDishBlur(d, mealType, (e.target as HTMLInputElement).value)
+                                                                            }}
                                                                             className="flex-1 text-sm font-bold bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-primary/50 text-slate-800 dark:text-slate-100 placeholder:text-slate-400 transition-all"
                                                                         />
                                                                         <datalist id={`mobile-past-${key}-${idx}`}>
@@ -519,8 +547,8 @@ export default function PlannerPage() {
                                                     <div
                                                         key={item.name}
                                                         className={`flex items-center gap-2 p-2.5 border rounded-xl transition-all ${item.isOwnedButLow
-                                                                ? 'bg-rose-50 dark:bg-rose-900/20 border-rose-100 dark:border-rose-800/30'
-                                                                : 'bg-amber-50 dark:bg-amber-900/20 border-amber-100 dark:border-amber-800/30'
+                                                            ? 'bg-rose-50 dark:bg-rose-900/20 border-rose-100 dark:border-rose-800/30'
+                                                            : 'bg-amber-50 dark:bg-amber-900/20 border-amber-100 dark:border-amber-800/30'
                                                             }`}
                                                     >
                                                         <span className={`material-symbols-outlined text-sm ${item.isOwnedButLow ? 'text-rose-500' : 'text-amber-500'}`}>
@@ -637,6 +665,10 @@ export default function PlannerPage() {
                                                             updateCell(selectedCell.date, selectedCell.mealType, { dishes: newDishes })
                                                         }}
                                                         placeholder={idx === 0 ? "어떤 음식을 드실 건가요?" : "음식 이름을 입력하세요"}
+                                                        onBlur={e => handleDishBlur(selectedCell.date, selectedCell.mealType, e.target.value)}
+                                                        onKeyUp={e => {
+                                                            if (e.key === 'Enter') handleDishBlur(selectedCell.date, selectedCell.mealType, (e.target as HTMLInputElement).value)
+                                                        }}
                                                         className="flex-1 text-base font-bold bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-primary/50 text-slate-800 dark:text-slate-100 placeholder:text-slate-400 transition-all"
                                                         autoFocus={idx === 0}
                                                     />
@@ -760,8 +792,8 @@ export default function PlannerPage() {
                                                     <div
                                                         key={item.name}
                                                         className={`flex items-center gap-2 p-2.5 border rounded-xl transition-all ${item.isOwnedButLow
-                                                                ? 'bg-rose-50 dark:bg-rose-900/20 border-rose-100 dark:border-rose-800/30'
-                                                                : 'bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-800/30'
+                                                            ? 'bg-rose-50 dark:bg-rose-900/20 border-rose-100 dark:border-rose-800/30'
+                                                            : 'bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-800/30'
                                                             }`}
                                                     >
                                                         <span className={`material-symbols-outlined text-sm ${item.isOwnedButLow ? 'text-rose-500' : 'text-amber-500'}`}>

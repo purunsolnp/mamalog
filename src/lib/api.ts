@@ -252,3 +252,23 @@ export const getGrowthCharts = async (type: 'height_age' | 'weight_age' | 'weigh
 
     return data as GrowthChart[]
 }
+
+// Database Helper: Get Latest Daily Summary with growth data
+export const getLatestGrowthSummary = async (userId: string, babyId: string) => {
+    const { data, error } = await supabase
+        .from('daily_summaries')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('baby_id', babyId)
+        .or('weight_kg.not.is.null,height_cm.not.is.null')
+        .order('date', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+
+    if (error) {
+        console.error("Error fetching latest growth summary:", error)
+        throw error
+    }
+
+    return data as DailySummary | null
+}

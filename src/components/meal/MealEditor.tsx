@@ -5,6 +5,7 @@ import { useAppStore } from '@/lib/store'
 import { saveMealLog, updateMealLog } from '@/lib/api'
 import { format } from 'date-fns'
 import { MealItem, MealLog } from '@/types/database.types'
+import { extractIngredients, smartExtractIngredients } from '@/lib/ingredients'
 
 const SATISFACTION_OPTIONS = [
     { value: 5, label: '다 먹음', icon: 'sentiment_very_satisfied', color: 'bg-primary text-white shadow-primary/30' },
@@ -37,6 +38,7 @@ export function MealEditor() {
         logs, setLogs,
         currentNutrition, setCurrentNutrition,
         currentBaby,
+        inventories,
         setEditorOpen,
         editingLog, setEditingLog
     } = useAppStore()
@@ -215,8 +217,9 @@ export function MealEditor() {
                                         if (name) {
                                             // 이름의 각 단어 중 아직 재료에 없는 것만 추가
                                             const existing = items[idx].ingredients
-                                            const newWords = name.split(/\s+/).filter(
-                                                w => w && !existing.includes(w)
+                                            const knownIngs = inventories.map(inv => inv.ingredient_name)
+                                            const newWords = smartExtractIngredients(name, knownIngs).filter(
+                                                w => !existing.includes(w)
                                             )
                                             if (newWords.length > 0) {
                                                 updateItem(idx, { ingredients: [...existing, ...newWords] })
@@ -230,8 +233,9 @@ export function MealEditor() {
                                     const name = e.target.value.trim()
                                     if (name) {
                                         const existing = items[idx].ingredients
-                                        const newWords = name.split(/\s+/).filter(
-                                            w => w && !existing.includes(w)
+                                        const knownIngs = inventories.map(inv => inv.ingredient_name)
+                                        const newWords = smartExtractIngredients(name, knownIngs).filter(
+                                            w => !existing.includes(w)
                                         )
                                         if (newWords.length > 0) {
                                             updateItem(idx, { ingredients: [...existing, ...newWords] })

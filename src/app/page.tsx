@@ -10,7 +10,7 @@ import { AuthModal } from '@/components/auth/AuthModal'
 import { ProfileEditor } from '@/components/profile/ProfileEditor'
 import { GrowthDetailModal } from '@/components/growth/GrowthDetailModal'
 import { useAppStore } from '@/lib/store'
-import { getMealLogs, getDailySummaries, getProfile, getGrowthCharts, getBabies } from '@/lib/api'
+import { getMealLogs, getDailySummaries, getProfile, getGrowthCharts, getBabies, getLatestGrowthSummary } from '@/lib/api'
 import { calculatePercentileFromChart } from '@/lib/growth'
 import { format, startOfMonth, endOfMonth, differenceInMonths } from 'date-fns'
 import { ko } from 'date-fns/locale'
@@ -77,6 +77,7 @@ export default function Home() {
     logs, setLogs, dailySummaries, setDailySummaries,
     growthCharts, setGrowthCharts,
     editingLog, setEditingLog,
+    latestGrowthSummary, setLatestGrowthSummary,
     setAuthModalOpen,
     isProfileModalOpen, setProfileModalOpen,
   } = useAppStore()
@@ -107,14 +108,16 @@ export default function Home() {
         }
 
         // 2. Fetch logs and summaries for the current baby
-        const [mealData, summaryData, profileData] = await Promise.all([
+        const [mealData, summaryData, profileData, latestSummary] = await Promise.all([
           getMealLogs(user!.id, start, end, targetBaby?.id),
           getDailySummaries(user!.id, start, end, targetBaby?.id),
-          getProfile(user!.id)
+          getProfile(user!.id),
+          targetBaby ? getLatestGrowthSummary(user!.id, targetBaby.id) : null
         ])
 
         setLogs(mealData)
         setDailySummaries(summaryData)
+        setLatestGrowthSummary(latestSummary)
         if (profileData) setProfile(profileData)
 
         // 3. Fetch growth charts if we have a baby
@@ -239,23 +242,25 @@ export default function Home() {
                     color: 'bg-primary/20 text-primary',
                     value: (() => {
                       if (!currentBaby) return '아이 정보 필요'
-                      if (!currentSummary?.weight_kg) return '체중 기록 대기'
+
+                      const targetSummary = currentSummary?.weight_kg ? currentSummary : latestGrowthSummary
+                      if (!targetSummary?.weight_kg) return '체중 기록 대기'
 
                       const gender = currentBaby.gender
-                      const ageInMonths = differenceInMonths(new Date(), new Date(currentBaby.birthday || new Date()))
+                      const ageInMonths = differenceInMonths(new Date(targetSummary.date), new Date(currentBaby.birthday || new Date()))
 
                       // Priority 1: Weight-for-Height
-                      if (currentSummary.height_cm) {
+                      if (targetSummary.height_cm) {
                         const whChart = growthCharts.filter(c => c.type === 'weight_height')
                         if (whChart.length > 0) {
-                          return calculatePercentileFromChart(whChart, currentSummary.height_cm, currentSummary.weight_kg)
+                          return calculatePercentileFromChart(whChart, targetSummary.height_cm, targetSummary.weight_kg)
                         }
                       }
 
                       // Priority 2: Weight-for-Age
                       const waChart = growthCharts.filter(c => c.type === 'weight_age')
                       if (waChart.length > 0) {
-                        return calculatePercentileFromChart(waChart, ageInMonths, currentSummary.weight_kg)
+                        return calculatePercentileFromChart(waChart, ageInMonths, targetSummary.weight_kg)
                       }
 
                       return '데이터를 분석 중...'

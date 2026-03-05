@@ -21,10 +21,10 @@ export function Header() {
     }
 
     const navigationLinks = [
-        { href: "/", label: "대시보드", icon: "dashboard" },
-        { href: "/logs", label: "식단 기록", icon: "restaurant" },
-        { href: "/inventory", label: "냉장고 관리", icon: "kitchen" },
+        { href: "/", label: "식단 기록", icon: "dashboard" },
+        { href: "/logs", label: "식단 통계", icon: "restaurant" },
         { href: "/planner", label: "식단 계획", icon: "event_note" },
+        { href: "/inventory", label: "냉장고 관리", icon: "kitchen" },
     ]
 
     return (
@@ -70,9 +70,9 @@ export function Header() {
                     <>
                         <div className="flex gap-1 md:gap-2 items-center">
                             {/* 캘린더 버튼 (데스크탑) */}
-                            <button className="hidden sm:block p-1.5 md:p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-primary/10 hover:text-primary transition-all">
+                            <Link href="/" className="hidden sm:block p-1.5 md:p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-primary/10 hover:text-primary transition-all">
                                 <span className="material-symbols-outlined text-xl md:text-2xl">calendar_today</span>
-                            </button>
+                            </Link>
 
                             {/* 아기 프로필 선택 버튼 (벨 자리 대체) */}
                             <div className="relative">
