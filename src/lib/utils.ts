@@ -40,15 +40,21 @@ export function extractCoreIngredient(text: string, knownIngNames: string[] = []
 
     // Remove units
     COMMON_UNITS.forEach(unit => {
-        // Match unit at the end of string or followed by space
         const regex = new RegExp(`${unit}(?:\\s+|$)`, 'g')
         core = core.replace(regex, ' ')
     })
 
+    // Remove prefixes (찐-, 삶은-, 데친-, 다진-, 익힌-, 끓인-)
+    const PREFIXES = ['찐', '삶은', '데친', '다진', '익힌', '끓인']
+    PREFIXES.forEach(pref => {
+        const regex = new RegExp(`^${pref}[-\\s]*`, 'g')
+        core = core.replace(regex, '')
+    })
+
     // Remove other descriptors like '약간', '적당량', '조금', '반'
-    const DESCRIPTORS = ['약간', '적당량', '조금', '반', '다진', '썬', '채썬', '간']
+    const DESCRIPTORS = ['약간', '적당량', '조금', '반', '썬', '채썬', '간', '찜', '전', '구이']
     DESCRIPTORS.forEach(desc => {
-        const regex = new RegExp(`\\b${desc}\\b`, 'g')
+        const regex = new RegExp(`(${desc})\\b|(${desc})$`, 'g')
         core = core.replace(regex, ' ')
     })
 

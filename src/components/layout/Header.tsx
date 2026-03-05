@@ -26,9 +26,8 @@ export function Header() {
     }
 
     const navigationLinks = [
-        { href: "/", label: "식단 기록", icon: "dashboard" },
+        { href: "/", label: "식단 관리", icon: "calendar_month" },
         { href: "/logs", label: "식단 통계", icon: "restaurant" },
-        { href: "/planner", label: "식단 계획", icon: "event_note" },
         { href: "/inventory", label: "냉장고 관리", icon: "kitchen" },
     ]
 
@@ -74,7 +73,7 @@ export function Header() {
                 {user ? (
                     <>
                         <div className="flex gap-1 md:gap-2 items-center">
-                            {/* 캘린더 버튼 (데스크탑) */}
+                            {/* 캘린더/플래너 숏컷 버튼 (데스크탑) */}
                             <Link href="/" className="hidden sm:block p-1.5 md:p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-primary/10 hover:text-primary transition-all">
                                 <span className="material-symbols-outlined text-xl md:text-2xl">calendar_today</span>
                             </Link>

@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useAppStore } from '@/lib/store'
 
-export function InventoryForm() {
+export function InventoryForm({ onClose }: { onClose?: () => void }) {
     const { user, inventories, setInventories } = useAppStore()
     const [name, setName] = useState('')
     const [note, setNote] = useState('')
@@ -35,6 +35,7 @@ export function InventoryForm() {
             setNote('')
             setExpiry('')
             setStockStatus('enough')
+            if (onClose) onClose()
         }
         setIsLoading(false)
     }
@@ -82,8 +83,8 @@ export function InventoryForm() {
                             type="button"
                             onClick={() => setStockStatus('enough')}
                             className={`py-2.5 rounded-xl text-sm font-bold border transition-all flex items-center justify-center gap-1.5 ${stockStatus === 'enough'
-                                    ? 'bg-primary/10 border-primary text-primary'
-                                    : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-400'
+                                ? 'bg-primary/10 border-primary text-primary'
+                                : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-400'
                                 }`}
                         >
                             <span className="material-symbols-outlined text-base">check_circle</span>
@@ -93,8 +94,8 @@ export function InventoryForm() {
                             type="button"
                             onClick={() => setStockStatus('low')}
                             className={`py-2.5 rounded-xl text-sm font-bold border transition-all flex items-center justify-center gap-1.5 ${stockStatus === 'low'
-                                    ? 'bg-amber-100 border-amber-500 text-amber-600'
-                                    : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-400'
+                                ? 'bg-amber-100 border-amber-500 text-amber-600'
+                                : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-400'
                                 }`}
                         >
                             <span className="material-symbols-outlined text-base">shopping_cart</span>

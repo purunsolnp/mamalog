@@ -2,7 +2,6 @@
 
 import { Header } from '@/components/layout/Header'
 import { InventoryList } from '@/components/inventory/InventoryList'
-import { InventoryForm } from '@/components/inventory/InventoryForm'
 import { MenuRecommender } from '@/components/inventory/MenuRecommender'
 import { ShoppingWidget } from '@/components/shopping/ShoppingWidget'
 import { supabase } from '@/lib/supabase'
@@ -42,14 +41,14 @@ export default function InventoryPage() {
                 const newGrid: Record<string, PlanCell> = {}
                 data.forEach(log => {
                     const key = `${log.date}_${log.meal_type}`
-                    const dishes = log.meal_items?.map((item: any) => item.name) || []
+                    const items = log.meal_items?.map((item: any) => ({ name: item.name, satisfaction: item.satisfaction || 0 })) || []
                     const ingredients = log.meal_items?.flatMap((item: any) => item.ingredients || []).join(', ') || ''
 
                     // Shopping widget range
                     if (log.date >= startStr && log.date <= endStr) {
                         newGrid[key] = {
                             id: log.id,
-                            dishes: dishes.length > 0 ? dishes : [''],
+                            items: items.length > 0 ? items : [{ name: '', satisfaction: 0 }],
                             ingredients
                         }
                     }
@@ -91,9 +90,8 @@ export default function InventoryPage() {
                                 <div className="xl:col-span-2 flex flex-col gap-6">
                                     <InventoryList />
                                 </div>
-                                {/* Form and Recommender take 1/3 space on huge screens */}
+                                {/* Recommender take 1/3 space on huge screens */}
                                 <div className="xl:col-span-1 flex flex-col gap-6">
-                                    <InventoryForm />
                                     <MenuRecommender />
                                 </div>
                             </div>

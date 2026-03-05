@@ -14,8 +14,7 @@ export type ShoppingItem = {
 
 // PlanCell type minimal definition matching planner needs for calculating lists locally
 interface PlanCellData {
-    dishes: string[]
-    ingredients: string
+    items: { name: string; satisfaction: number; ingredients: string[] }[]
 }
 
 type ShoppingWidgetProps = {
@@ -65,12 +64,12 @@ export function ShoppingWidget({ inventories, localGrid, layout = 'inline', clas
             // Only include items within the selected period (today to endDate inclusive)
             if (dateStr < todayStr || dateStr > endDateStr) return
 
-            const validDishes = cell.dishes.filter(d => d.trim())
-            if (!validDishes.length) return
+            const validItems = cell.items?.filter(d => d.name.trim()) || []
+            if (!validItems.length) return
 
-            const ings = cell.ingredients
-                ? smartExtractIngredients(cell.ingredients, knownIngNames)
-                : validDishes.flatMap(d => smartExtractIngredients(d.trim(), knownIngNames))
+            const ings = validItems.flatMap(d => (d.ingredients && d.ingredients.length > 0)
+                ? d.ingredients
+                : smartExtractIngredients(d.name.trim(), knownIngNames))
 
             ings.forEach(ing => needed.set(ing, (needed.get(ing) ?? 0) + 1))
         })
