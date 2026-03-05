@@ -20,6 +20,11 @@ export function Header() {
         setIsMobileMenuOpen(false)
     }
 
+    const ensureHttps = (url: string | undefined | null) => {
+        if (!url) return null
+        return url.replace('http://', 'https://')
+    }
+
     const navigationLinks = [
         { href: "/", label: "식단 기록", icon: "dashboard" },
         { href: "/logs", label: "식단 통계", icon: "restaurant" },
@@ -142,7 +147,7 @@ export function Header() {
                             >
                                 <div className="size-8 md:size-10 rounded-full bg-slate-200 dark:bg-slate-700 border-2 border-primary overflow-hidden flex items-center justify-center text-slate-500">
                                     {user.user_metadata?.avatar_url ? (
-                                        <img src={user.user_metadata.avatar_url} alt="Profile" className="w-full h-full object-cover" />
+                                        <img src={ensureHttps(user.user_metadata.avatar_url)!} alt="Profile" className="w-full h-full object-cover" />
                                     ) : (
                                         <span className="material-symbols-outlined text-xl">person</span>
                                     )}
@@ -261,7 +266,7 @@ export function Header() {
                                 <div className="flex items-center gap-3 mb-4">
                                     <div className="size-10 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden flex items-center justify-center">
                                         {user.user_metadata?.avatar_url ? (
-                                            <img src={user.user_metadata.avatar_url} alt="Profile" className="w-full h-full object-cover" />
+                                            <img src={ensureHttps(user.user_metadata.avatar_url)!} alt="Profile" className="w-full h-full object-cover" />
                                         ) : (
                                             <span className="material-symbols-outlined text-slate-400">person</span>
                                         )}

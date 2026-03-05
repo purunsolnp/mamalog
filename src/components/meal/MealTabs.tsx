@@ -22,13 +22,13 @@ export function MealTabs() {
                     <button
                         key={tab.id}
                         onClick={() => setMealType(tab.id)}
-                        className={`flex-1 min-w-[120px] py-3 px-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all ${isActive
+                        className={`flex-1 min-w-0 py-2.5 px-2 rounded-xl font-bold flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 transition-all ${isActive
                             ? 'bg-white dark:bg-slate-700 shadow-sm border border-primary text-primary'
                             : 'text-slate-500 dark:text-slate-400 hover:bg-white dark:hover:bg-slate-700'
                             }`}
                     >
-                        <span className="material-symbols-outlined">{tab.icon}</span>
-                        {tab.label}
+                        <span className="material-symbols-outlined text-xl sm:text-base">{tab.icon}</span>
+                        <span className="text-[10px] sm:text-sm truncate">{tab.label}</span>
                     </button>
                 )
             })}
