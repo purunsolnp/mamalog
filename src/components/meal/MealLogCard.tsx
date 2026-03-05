@@ -8,8 +8,9 @@ import { useAppStore } from '@/lib/store'
 const SAT_MAP: Record<number, { icon: string; label: string; color: string; activeBg: string }> = {
     5: { icon: 'sentiment_very_satisfied', label: '다 먹음', color: 'text-primary', activeBg: 'bg-primary/10' },
     4: { icon: 'sentiment_satisfied', label: '반쯤 먹음', color: 'text-blue-400', activeBg: 'bg-blue-400/10' },
-    2: { icon: 'sentiment_neutral', label: '조금 먹음', color: 'text-amber-400', activeBg: 'bg-amber-400/10' },
-    1: { icon: 'sentiment_dissatisfied', label: '거의 안', color: 'text-red-400', activeBg: 'bg-red-400/10' },
+    2: { icon: 'sentiment_dissatisfied', label: '조금 먹음', color: 'text-amber-400', activeBg: 'bg-amber-400/10' },
+    1: { icon: 'sentiment_very_dissatisfied', label: '거의 안', color: 'text-red-400', activeBg: 'bg-red-400/10' },
+    0: { icon: 'sentiment_neutral', label: '평가 없음', color: 'text-slate-400', activeBg: 'bg-slate-100' },
 }
 
 const MEAL_TYPE_ICON: Record<string, string> = {
@@ -39,7 +40,7 @@ export function MealLogCard({ log }: { log: MealLog }) {
         ? log.meal_items!.reduce((best, item) => item.satisfaction > best ? item.satisfaction : best, 0)
         : (log.satisfaction ?? 0)
 
-    const satInfo = SAT_MAP[overallSat] ?? SAT_MAP[5]
+    const satInfo = SAT_MAP[overallSat] ?? SAT_MAP[0]
 
     const handleDelete = async () => {
         if (!confirm(`"${titleText}" 기록을 삭제할까요?`)) return
@@ -135,7 +136,7 @@ export function MealLogCard({ log }: { log: MealLog }) {
                     {hasItems ? (
                         /* New format: per-dish items */
                         log.meal_items!.map((item, idx) => {
-                            const s = SAT_MAP[item.satisfaction] ?? SAT_MAP[5]
+                            const s = SAT_MAP[item.satisfaction] ?? SAT_MAP[0]
                             return (
                                 <div key={idx} className="flex items-start gap-3 p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-700">
                                     <div className={`size-8 rounded-full shrink-0 flex items-center justify-center ${s.activeBg} ${s.color}`}>
